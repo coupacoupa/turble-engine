@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plus, Shield, Layers, PlusCircle, Trash2, Cpu } from 'lucide-react';
-import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType, CellSchema } from '../../types/matrix.types';
+import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType, CellSchema } from '@/types/matrix.types';
 
 interface MatrixGridProps {
   matrix: MatrixSchema;

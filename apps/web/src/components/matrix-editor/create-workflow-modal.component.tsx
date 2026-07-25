@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Layers } from 'lucide-react';
-import { MatrixSchema } from '../../types/matrix.types';
+import { MatrixSchema } from '@/types/matrix.types';
 import {
   Dialog,
   DialogContent,

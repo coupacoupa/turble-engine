@@ -1,4 +1,4 @@
-import { MatrixSchema } from '../../types/matrix.types';
+import { MatrixSchema } from '@/types/matrix.types';
 
 const STORAGE_KEY = 'turble_engine_workflows_v1';
 

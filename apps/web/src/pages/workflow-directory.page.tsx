@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Layers, Plus, ArrowRight, Cpu, GitBranch, Trash2, FolderPlus } from 'lucide-react';
-import { MatrixSchema } from '../types/matrix.types';
-import { WorkflowStorageService } from '../lib/services/workflow-storage.service';
-import { AppHeader } from '../components/layout/app-header.component';
-import { CreateWorkflowModal } from '../components/matrix-editor/create-workflow-modal.component';
+import { MatrixSchema } from '@/types/matrix.types';
+import { WorkflowStorageService } from '@/lib/services/workflow-storage.service';
+import { AppHeader } from '@/components/layout/app-header.component';
+import { CreateWorkflowModal } from '@/components/matrix-editor/create-workflow-modal.component';
 
 interface WorkflowDirectoryPageProps {
   onOpenBuilder: (workflowId: string) => void;

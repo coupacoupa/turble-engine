@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Plus, Trash2, Sliders } from 'lucide-react';
-import { MatrixSchema, DomainRowSchema, StepColumnSchema, CellSchema, CellActionType, TableRuleMatch } from '../../types/matrix.types';
+import { MatrixSchema, DomainRowSchema, StepColumnSchema, CellSchema, CellActionType, TableRuleMatch } from '@/types/matrix.types';
 
 interface CellEditorDrawerProps {
   isOpen: boolean;

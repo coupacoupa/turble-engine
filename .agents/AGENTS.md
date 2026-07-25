@@ -13,3 +13,6 @@
   - **No Dummy Fallbacks:** Never mask errors, swallow exceptions, or inject silent dummy fallbacks/hardcoded fake values, as this breaks production applications.
   - **Explicit Error Boundaries:** Catch errors explicitly at execution boundaries and report clean diagnostic error states.
   - **User Consultation:** If an ambiguous error condition or unhandled edge case occurs, ask the user directly for guidance on how to handle it rather than inventing silent fallback values.
+
+## 3. Import Path Conventions
+- Avoid relative backward imports (`../` or `../../`). Always use the `@/` path alias for internal imports from `src` (e.g. `@/types/matrix.types`, `@/components/...`, `@/lib/...`).

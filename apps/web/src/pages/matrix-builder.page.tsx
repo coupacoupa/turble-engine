@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType, CellSchema } from '../types/matrix.types';
-import { MockEvaluatorService, MatrixExecutionResult } from '../lib/services/mock-evaluator.service';
-import { WorkflowStorageService } from '../lib/services/workflow-storage.service';
-import { AppHeader } from '../components/layout/app-header.component';
-import { MatrixGrid } from '../components/matrix-editor/matrix-grid.component';
-import { CellEditorDrawer } from '../components/matrix-editor/cell-editor-drawer.component';
-import { TimeTravelBar } from '../components/debugger/time-travel-bar.component';
-import { ExecuteMatrixModal } from '../components/matrix-editor/execute-matrix-modal.component';
+import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType, CellSchema } from '@/types/matrix.types';
+import { MockEvaluatorService, MatrixExecutionResult } from '@/lib/services/mock-evaluator.service';
+import { WorkflowStorageService } from '@/lib/services/workflow-storage.service';
+import { AppHeader } from '@/components/layout/app-header.component';
+import { MatrixGrid } from '@/components/matrix-editor/matrix-grid.component';
+import { CellEditorDrawer } from '@/components/matrix-editor/cell-editor-drawer.component';
+import { TimeTravelBar } from '@/components/debugger/time-travel-bar.component';
+import { ExecuteMatrixModal } from '@/components/matrix-editor/execute-matrix-modal.component';
 
 interface MatrixBuilderPageProps {
   workflowId: string;

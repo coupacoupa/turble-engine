@@ -1,4 +1,4 @@
-import { MatrixSchema, ReplayEventLog, StepEvaluationRecord, CellResult } from '../../types/matrix.types';
+import { MatrixSchema, ReplayEventLog, StepEvaluationRecord, CellResult } from '@/types/matrix.types';
 
 export interface MatrixExecutionResult {
   token: any;
