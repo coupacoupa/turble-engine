@@ -1,6 +1,6 @@
 import React from 'react';
 import { Play, Pause, FastForward, Rewind, Activity, Code } from 'lucide-react';
-import { ReplayEventLog } from '@turble/engine';
+import { ReplayEventLog } from '../../types/matrix.types';
 
 interface TimeTravelBarProps {
   eventLog?: ReplayEventLog;

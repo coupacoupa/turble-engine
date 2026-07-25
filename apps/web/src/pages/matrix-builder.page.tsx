@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType } from '@turble/engine';
-import { CellSchema } from '@turble/engine';
-import { MatrixEvaluatorEngine, MatrixExecutionResult } from '@turble/engine';
-import { TimeTravelReplayService } from '@turble/engine';
+import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType, CellSchema } from '../types/matrix.types';
+import { MockEvaluatorService, MatrixExecutionResult } from '../lib/services/mock-evaluator.service';
 import { WorkflowStorageService } from '../lib/services/workflow-storage.service';
 import { AppHeader } from '../components/layout/app-header.component';
 import { MatrixGrid } from '../components/matrix-editor/matrix-grid.component';
@@ -39,12 +37,12 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
 
   if (!matrix) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
         <div className="text-center space-y-3">
           <p className="text-sm font-semibold text-slate-700">Workflow Matrix not found.</p>
           <button
             onClick={onBackToDashboard}
-            className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-bold"
+            className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-bold shadow-sm cursor-pointer"
           >
             Back to Dashboard
           </button>
@@ -145,24 +143,17 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
     });
   };
 
-  // Run Matrix Execution Handler with Dynamic JSON Payload
+  // Run Matrix Execution Simulation
   const handleStartExecution = async (inputPayload: Record<string, any>) => {
     setIsExecuting(true);
-    const engine = new MatrixEvaluatorEngine();
-
-    // Register all saved sub-workflows
-    const allWorkflows = WorkflowStorageService.getAll();
-    allWorkflows.forEach((w) => engine.registerSubWorkflow(w));
-
-    const res = await engine.executeMatrix(matrix, inputPayload);
+    const res = MockEvaluatorService.executeMatrix(matrix, inputPayload);
     setExecutionResult(res);
     setCurrentStepIndex(0);
     setIsExecuting(false);
   };
 
-  const replayService = new TimeTravelReplayService();
   const stepSnapshot = executionResult?.eventLog
-    ? replayService.replayUntilStep(executionResult.eventLog, currentStepIndex)
+    ? MockEvaluatorService.replayUntilStep(executionResult.eventLog, currentStepIndex)
     : undefined;
 
   return (

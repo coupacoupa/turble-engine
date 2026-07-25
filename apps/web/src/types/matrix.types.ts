@@ -1,3 +1,5 @@
+export type RowType = 'plain' | 'workflow';
+
 export type PlainCellAction = 'table_rule' | 'expression' | 'api_call' | 'event_emitter' | 'passthrough';
 export type WorkflowCellAction = 'trigger_sub_workflow' | 'override_sub_workflow' | 'skip_sub_workflow';
 
@@ -5,11 +7,8 @@ export type CellActionType = PlainCellAction | WorkflowCellAction;
 
 /** Rule match condition for custom table_rule cell action */
 export interface TableRuleMatch {
-  /** Condition map: e.g. { creditScore: ">= 700", dti: "<= 0.35" } */
   conditions: Record<string, string>;
-  /** Mutations applied to payload if matched: e.g. { status: "APPROVED", limit: 25000 } */
   mutations: Record<string, any>;
-  /** Optional custom event payload emitted on match */
   emitEvent?: {
     eventName: string;
     payload: Record<string, any>;
@@ -40,11 +39,8 @@ export interface EventEmitterConfig {
 }
 
 export interface SubWorkflowTriggerConfig {
-  /** Mappings from parent matrix payload variables to sub-workflow inputs */
   inputMapping: Record<string, string>;
-  /** Mappings from sub-workflow output variables back into parent matrix payload */
   outputMapping: Record<string, string>;
-  /** Optional overrides specific to this cell coordinate */
   parameterOverrides?: Record<string, any>;
 }
 
@@ -55,12 +51,37 @@ export interface CellSchema {
   action: CellActionType;
   enabled?: boolean;
   
-  // Action configurations based on RowType
   tableRuleConfig?: TableRuleConfig;
   expressionConfig?: ExpressionConfig;
   apiCallConfig?: ApiCallConfig;
   eventEmitterConfig?: EventEmitterConfig;
   subWorkflowConfig?: SubWorkflowTriggerConfig;
+}
+
+export interface StepColumnSchema {
+  id: string;
+  label: string;
+  order: number;
+  isAsync?: boolean;
+}
+
+export interface DomainRowSchema {
+  id: string;
+  label: string;
+  order: number;
+  type: RowType;
+  subWorkflowId?: string;
+  isInterceptor?: boolean;
+}
+
+export interface MatrixSchema {
+  id: string;
+  name: string;
+  description?: string;
+  version: string;
+  columns: StepColumnSchema[];
+  rows: DomainRowSchema[];
+  cells: Record<string, CellSchema>;
 }
 
 export interface EmittedCellEvent {
@@ -82,4 +103,37 @@ export interface CellResult {
   matchedRules?: number[];
   error?: string;
   latencyMs: number;
+}
+
+export interface StepEvaluationRecord {
+  stepIndex: number;
+  colId: string;
+  colLabel: string;
+  timestamp: number;
+  initialPayload: Record<string, any>;
+  finalPayload: Record<string, any>;
+  cellResults: CellResult[];
+  emittedEvents: EmittedCellEvent[];
+}
+
+export interface ReplayEventLog {
+  executionId: string;
+  matrixId: string;
+  startedAt: number;
+  completedAt?: number;
+  stepRecords: StepEvaluationRecord[];
+}
+
+export type TokenStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+export interface ExecutionToken {
+  id: string;
+  matrixId: string;
+  currentStepIndex: number;
+  currentColId: string;
+  payload: Record<string, any>;
+  status: TokenStatus;
+  startedAt: number;
+  completedAt?: number;
+  error?: string;
 }

@@ -1,4 +1,4 @@
-import { MatrixSchema } from '@turble/engine';
+import { MatrixSchema } from '../../types/matrix.types';
 
 // Initial Starter Workflows
 export const INITIAL_WORKFLOWS: MatrixSchema[] = [

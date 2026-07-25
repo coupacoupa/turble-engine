@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Layers } from 'lucide-react';
-import { MatrixSchema } from '@turble/engine';
+import { MatrixSchema } from '../../types/matrix.types';
 import {
   Dialog,
   DialogContent,
