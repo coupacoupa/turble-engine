@@ -1,16 +1,17 @@
-import { ServiceImpl } from '@connectrpc/connect';
+import type { ServiceImpl } from '@connectrpc/connect';
+import { create } from '@bufbuild/protobuf';
 import { MatrixEvaluatorService } from '@repo/proto';
 import {
-  ExecuteMatrixRequest,
-  ExecuteMatrixResponse,
-  StreamExecutionStepsRequest,
-  StreamExecutionStepsResponse,
+  type ExecuteMatrixRequest,
+  ExecuteMatrixResponseSchema,
+  type StreamExecutionStepsRequest,
+  StreamExecutionStepsResponseSchema,
   CellActionType,
 } from '@repo/proto';
 
 /** Service Implementation for Connect-RPC MatrixEvaluatorService */
-export const matrixEvaluatorHandler: Partial<ServiceImpl<typeof MatrixEvaluatorService>> = {
-  async executeMatrix(req: ExecuteMatrixRequest): Promise<ExecuteMatrixResponse> {
+export const matrixEvaluatorHandler: ServiceImpl<typeof MatrixEvaluatorService> = {
+  async executeMatrix(req: ExecuteMatrixRequest) {
     console.log(`[Handler] Executing Matrix RPC for ID: ${req.matrixId}`);
 
     let payload: Record<string, any> = {};
@@ -28,7 +29,7 @@ export const matrixEvaluatorHandler: Partial<ServiceImpl<typeof MatrixEvaluatorS
     payload.creditLimit = 25000;
     payload.approvedAt = new Date().toISOString();
 
-    return new ExecuteMatrixResponse({
+    return create(ExecuteMatrixResponseSchema, {
       executionId: `exec_${Date.now()}`,
       matrixId: req.matrixId,
       finalPayloadJson: JSON.stringify(payload, null, 2),
@@ -76,7 +77,7 @@ export const matrixEvaluatorHandler: Partial<ServiceImpl<typeof MatrixEvaluatorS
     });
   },
 
-  async *streamExecutionSteps(req: StreamExecutionStepsRequest): AsyncGenerator<StreamExecutionStepsResponse> {
+  async *streamExecutionSteps(req: StreamExecutionStepsRequest) {
     console.log(`[Handler] Streaming execution steps for Matrix: ${req.matrixId}`);
 
     const steps = [
@@ -90,7 +91,7 @@ export const matrixEvaluatorHandler: Partial<ServiceImpl<typeof MatrixEvaluatorS
       // Simulate step latency
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      yield new StreamExecutionStepsResponse({
+      yield create(StreamExecutionStepsResponseSchema, {
         executionId: `exec_stream_${Date.now()}`,
         isCompleted: step.stepIndex === steps.length - 1,
         currentStepRecord: {
