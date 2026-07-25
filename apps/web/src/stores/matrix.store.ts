@@ -69,29 +69,4 @@ export const INITIAL_WORKFLOWS: MatrixSchema[] = [
       },
     },
   },
-  {
-    id: 'wf_notification_sub',
-    name: 'Notification Dispatch Capability',
-    description: 'Sub-workflow capability for sending WhatsApp and Email receipts.',
-    version: '1.0.0',
-    columns: [
-      { id: 'sub_col_1', label: '1. Build Payload', order: 0 },
-      { id: 'sub_col_2', label: '2. Send Webhook', order: 1 },
-    ],
-    rows: [
-      { id: 'sub_row_email', label: 'Email Driver', order: 0, type: 'plain' },
-    ],
-    cells: {
-      'sub_row_email:sub_col_1': {
-        id: 'sub_cell_1',
-        rowId: 'sub_row_email',
-        colId: 'sub_col_1',
-        action: 'expression',
-        expressionConfig: {
-          expression: "'EMAIL_SENT_SUCCESS'",
-          outputVariable: 'dispatchResult',
-        },
-      },
-    },
-  },
 ];

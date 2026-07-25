@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType, CellSchema } from '@/types/matrix.types';
-import { MockEvaluatorService, MatrixExecutionResult } from '@/lib/services/mock-evaluator.service';
-import { WorkflowStorageService } from '@/lib/services/workflow-storage.service';
+import { MockEvaluatorService, MatrixExecutionResult } from '@/services/mock-evaluator.service';
+import { WorkflowStorageService } from '@/services/workflow-storage.service';
+import { MatrixEvaluatorConnectService } from '@/services/matrix-evaluator.service';
 import { AppHeader } from '@/components/layout/app-header.component';
 import { MatrixGrid } from '@/components/matrix-editor/matrix-grid.component';
 import { CellEditorDrawer } from '@/components/matrix-editor/cell-editor-drawer.component';

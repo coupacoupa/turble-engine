@@ -67,7 +67,6 @@ export class WorkflowStorageService {
     try {
       const data = localStorage.getItem(STORAGE_KEY);
       if (!data) {
-        // Seed default sample workflow
         localStorage.setItem(STORAGE_KEY, JSON.stringify([SEED_WORKFLOW]));
         return [SEED_WORKFLOW];
       }

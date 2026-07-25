@@ -21,7 +21,6 @@ export class MockEvaluatorService {
       matrix.rows.forEach((row) => {
         const cell = matrix.cells[`${row.id}:${col.id}`];
         if (cell && cell.enabled !== false) {
-          // Simulate rule evaluation
           let status: 'success' | 'fail' | 'skipped' = 'success';
           if (cell.action === 'table_rule' && cell.tableRuleConfig) {
             cell.tableRuleConfig.rules.forEach((rule) => {
