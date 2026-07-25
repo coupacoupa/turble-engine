@@ -7,7 +7,6 @@ import "turble/engine/v1/matrix.proto";
 message ExecuteMatrixRequest {
   string matrix_id = 1;
   MatrixSchema matrix_schema = 2;
-  // Dynamic initial payload formatted as JSON string
   string initial_payload_json = 3;
 }
 
