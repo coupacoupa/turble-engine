@@ -4,6 +4,8 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "dev:app": "turbo run dev --filter=web --filter=backend",
+    "dev:backend": "pnpm --filter backend dev",
     "dev:web": "pnpm --filter web dev",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",

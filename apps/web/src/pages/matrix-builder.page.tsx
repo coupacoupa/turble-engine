@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType, CellSchema } from '@/types/matrix.types';
-import { MockEvaluatorService, MatrixExecutionResult } from '@/services/mock-evaluator.service';
+import { MatrixEvaluatorConnectService, type MatrixExecutionResult } from '@/services/matrix-evaluator.service';
 import { WorkflowStorageService } from '@/services/workflow-storage.service';
-import { MatrixEvaluatorConnectService } from '@/services/matrix-evaluator.service';
 import { AppHeader } from '@/components/layout/app-header.component';
 import { MatrixGrid } from '@/components/matrix-editor/matrix-grid.component';
 import { CellEditorDrawer } from '@/components/matrix-editor/cell-editor-drawer.component';
@@ -144,18 +143,27 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
     });
   };
 
-  // Run Matrix Execution Simulation
+  // Run Matrix Execution via Connect-RPC Backend
   const handleStartExecution = async (inputPayload: Record<string, any>) => {
     setIsExecuting(true);
-    const res = MockEvaluatorService.executeMatrix(matrix, inputPayload);
-    setExecutionResult(res);
-    setCurrentStepIndex(0);
-    setIsExecuting(false);
+    try {
+      const res = await MatrixEvaluatorConnectService.executeMatrix(matrix.id, inputPayload);
+      setExecutionResult(res);
+      setCurrentStepIndex(0);
+    } catch (err) {
+      console.error('[Execute] Connect-RPC call failed:', err);
+    } finally {
+      setIsExecuting(false);
+    }
   };
 
-  const stepSnapshot = executionResult?.eventLog
-    ? MockEvaluatorService.replayUntilStep(executionResult.eventLog, currentStepIndex)
-    : undefined;
+  const stepSnapshot = (() => {
+    const log = executionResult?.eventLog;
+    if (!log?.stepRecords?.length) return undefined;
+    const safeIndex = Math.min(Math.max(0, currentStepIndex), log.stepRecords.length - 1);
+    const stepRecord = log.stepRecords[safeIndex];
+    return { currentPayload: stepRecord.finalPayload, activeStepRecord: stepRecord };
+  })();
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col selection:bg-emerald-100 selection:text-emerald-900">
