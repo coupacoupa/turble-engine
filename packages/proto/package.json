@@ -1,0 +1,29 @@
+{
+  "name": "@repo/proto",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/gen/turble/engine/v1/matrix_pb.js",
+  "types": "./src/gen/turble/engine/v1/matrix_pb.d.ts",
+  "exports": {
+    ".": "./src/gen/index.ts",
+    "./*": "./src/gen/*"
+  },
+  "scripts": {
+    "generate": "buf generate",
+    "build": "buf generate && tsc --noEmit",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^1.10.0",
+    "@bufbuild/protovalidate": "^0.6.0",
+    "@connectrpc/connect": "^1.6.0"
+  },
+  "devDependencies": {
+    "@bufbuild/buf": "^1.50.0",
+    "@bufbuild/protoc-gen-es": "^2.2.3",
+    "@connectrpc/protoc-gen-connect-es": "^1.7.0",
+    "@repo/typescript-config": "workspace:*",
+    "typescript": "5.9.2"
+  }
+}

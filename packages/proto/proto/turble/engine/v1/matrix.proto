@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package turble.engine.v1;
+
+enum RowType {
+  ROW_TYPE_UNSPECIFIED = 0;
+  ROW_TYPE_PLAIN = 1;
+  ROW_TYPE_WORKFLOW = 2;
+}
+
+enum CellActionType {
+  CELL_ACTION_TYPE_UNSPECIFIED = 0;
+  CELL_ACTION_TYPE_PASSTHROUGH = 1;
+  CELL_ACTION_TYPE_TABLE_RULE = 2;
+  CELL_ACTION_TYPE_EXPRESSION = 3;
+  CELL_ACTION_TYPE_API_CALL = 4;
+  CELL_ACTION_TYPE_EVENT_EMITTER = 5;
+  CELL_ACTION_TYPE_TRIGGER_SUB_WORKFLOW = 6;
+  CELL_ACTION_TYPE_OVERRIDE_SUB_WORKFLOW = 7;
+  CELL_ACTION_TYPE_SKIP_SUB_WORKFLOW = 8;
+}
+
+message TableRuleMatch {
+  // Condition key-value pairs (e.g. { "creditScore": ">= 700" })
+  map<string, string> conditions = 1;
+  // Payload mutations applied on match (e.g. { "status": "APPROVED" })
+  map<string, string> mutations = 2;
+  string emit_event_name = 3;
+}
+
+message TableRuleConfig {
+  repeated TableRuleMatch rules = 1;
+  string hit_policy = 2;
+}
+
+message ExpressionConfig {
+  string expression = 1;
+  string output_variable = 2;
+}
+
+message SubWorkflowTriggerConfig {
+  map<string, string> input_mapping = 1;
+  map<string, string> output_mapping = 2;
+}
+
+message CellSchema {
+  string id = 1;
+  string row_id = 2;
+  string col_id = 3;
+  CellActionType action = 4;
+  bool enabled = 5;
+
+  TableRuleConfig table_rule_config = 6;
+  ExpressionConfig expression_config = 7;
+  SubWorkflowTriggerConfig sub_workflow_config = 8;
+}
+
+message StepColumnSchema {
+  string id = 1;
+  string label = 2;
+  int32 order = 3;
+  bool is_async = 4;
+}
+
+message DomainRowSchema {
+  string id = 1;
+  string label = 2;
+  int32 order = 3;
+  RowType type = 4;
+  string sub_workflow_id = 5;
+  bool is_interceptor = 6;
+}
+
+message MatrixSchema {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string version = 4;
+
+  repeated StepColumnSchema columns = 5;
+  repeated DomainRowSchema rows = 6;
+  map<string, CellSchema> cells = 7;
+}
