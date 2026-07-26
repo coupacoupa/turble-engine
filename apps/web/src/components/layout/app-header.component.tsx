@@ -3,7 +3,7 @@ import { Layers, Plus, Play, ArrowLeft, Cpu } from 'lucide-react';
 
 interface AppHeaderProps {
   activeMatrixName?: string;
-  onOpenCreateModal?: () => void;
+  onCreateMatrix?: () => void;
   onRunExecution?: () => void;
   isExecuting?: boolean;
   onBackToDashboard?: () => void;
@@ -11,7 +11,7 @@ interface AppHeaderProps {
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
   activeMatrixName,
-  onOpenCreateModal,
+  onCreateMatrix,
   onRunExecution,
   isExecuting = false,
   onBackToDashboard,
@@ -59,9 +59,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           </button>
         )}
 
-        {onOpenCreateModal && (
+        {onCreateMatrix && (
           <button
-            onClick={onOpenCreateModal}
+            onClick={onCreateMatrix}
             className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center space-x-1.5 shadow-sm transition-colors cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5" />

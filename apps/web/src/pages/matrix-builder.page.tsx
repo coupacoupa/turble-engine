@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Edit3 } from 'lucide-react';
 import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType, CellSchema } from '@/types/matrix.types';
 import { MatrixEvaluatorConnectService, type MatrixExecutionResult } from '@/services/matrix-evaluator.service';
 import { WorkflowStorageService } from '@/services/workflow-storage.service';
@@ -50,6 +51,49 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
       </div>
     );
   }
+
+  // Title & Description Editing Handlers
+  const handleUpdateName = (name: string) => {
+    setMatrix((prev) => (prev ? { ...prev, name } : prev));
+  };
+
+  const handleUpdateDescription = (description: string) => {
+    setMatrix((prev) => (prev ? { ...prev, description } : prev));
+  };
+
+  // Direct Matrix Creation Handler (Header)
+  const handleCreateNewMatrix = () => {
+    const id = `wf_matrix_${Date.now()}`;
+    const newMatrix: MatrixSchema = {
+      id,
+      name: 'Untitled Matrix Workflow',
+      description: 'Newly initialized 2D decision matrix.',
+      version: '1.0.0',
+      columns: [],
+      rows: [],
+      cells: {},
+    };
+    WorkflowStorageService.save(newMatrix);
+    setMatrix(newMatrix);
+  };
+
+  // Direct Sub-Workflow Matrix Creation Handler (Drawer)
+  const handleCreateSubWorkflow = () => {
+    const subId = `wf_sub_${Date.now()}`;
+    const newSub: MatrixSchema = {
+      id: subId,
+      name: 'Untitled Sub-Workflow Matrix',
+      description: 'Sub-workflow matrix capability.',
+      version: '1.0.0',
+      columns: [],
+      rows: [],
+      cells: {},
+    };
+    WorkflowStorageService.save(newSub);
+    if (selectedRow) {
+      handleSelectSubWorkflow(subId);
+    }
+  };
 
   // Cell Selection Handler
   const handleSelectCell = (row: DomainRowSchema, col: StepColumnSchema, cell?: CellSchema) => {
@@ -132,6 +176,19 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
     });
   };
 
+  // Select Sub-Workflow Handler
+  const handleSelectSubWorkflow = (subWorkflowId: string) => {
+    if (!selectedRow) return;
+    setMatrix((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        rows: prev.rows.map((r) => (r.id === selectedRow.id ? { ...r, subWorkflowId } : r)),
+      };
+    });
+    setSelectedRow((prev) => (prev ? { ...prev, subWorkflowId } : prev));
+  };
+
   // Delete Column Handler
   const handleDeleteColumn = (colId: string) => {
     setMatrix((prev) => {
@@ -171,22 +228,42 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
       <AppHeader
         activeMatrixName={matrix.name}
         onBackToDashboard={onBackToDashboard}
+        onCreateMatrix={handleCreateNewMatrix}
         onRunExecution={() => setIsExecuteModalOpen(true)}
         isExecuting={isExecuting}
       />
 
       {/* Main Studio Body */}
       <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 w-full">
-        {/* Title & Description */}
-        <div className="flex items-center justify-between flex-wrap gap-4 border-b border-slate-200 pb-4">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">{matrix.name}</h1>
-            <p className="text-slate-500 text-xs mt-0.5 font-mono">{matrix.description || 'No description'}</p>
+        {/* Title & Description (Excel / Google Sheets Inline Editing) */}
+        <div className="flex items-center justify-between flex-wrap gap-4 border-b border-slate-200 pb-4 bg-white p-4 rounded-xl shadow-2xs">
+          <div className="space-y-1 flex-1 max-w-2xl">
+            <div className="flex items-center space-x-2 group">
+              <input
+                type="text"
+                value={matrix.name}
+                onChange={(e) => handleUpdateName(e.target.value)}
+                placeholder="Matrix Name (e.g. Credit Scorecard Matrix)"
+                className="text-xl font-bold text-slate-900 tracking-tight bg-transparent hover:bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded px-1.5 py-0.5 w-full transition-all"
+              />
+              <Edit3 className="h-4 w-4 text-slate-400 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity" />
+            </div>
+
+            <input
+              type="text"
+              value={matrix.description}
+              onChange={(e) => handleUpdateDescription(e.target.value)}
+              placeholder="Enter matrix workflow description..."
+              className="text-slate-500 text-xs font-mono bg-transparent hover:bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded px-1.5 py-0.5 w-full transition-all"
+            />
           </div>
 
           <div className="flex items-center space-x-2 font-mono text-xs">
-            <span className="bg-white border border-slate-200 text-slate-600 font-bold px-2.5 py-1 rounded-md shadow-2xs">
-              VERSION: {matrix.version}
+            <span className="bg-slate-100 border border-slate-200 text-slate-700 font-bold px-2.5 py-1 rounded-md shadow-2xs">
+              ID: {matrix.id}
+            </span>
+            <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold px-2.5 py-1 rounded-md shadow-2xs">
+              v{matrix.version}
             </span>
           </div>
         </div>
@@ -231,6 +308,8 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
         cell={selectedCell}
         availableSubWorkflows={WorkflowStorageService.getAll()}
         onSaveCell={handleSaveCell}
+        onCreateMatrix={handleCreateSubWorkflow}
+        onSelectSubWorkflow={handleSelectSubWorkflow}
       />
 
       {/* Dynamic JSON Execution Payload Modal */}

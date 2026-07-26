@@ -3,7 +3,6 @@ import { Layers, Plus, ArrowRight, Cpu, GitBranch, Trash2, FolderPlus } from 'lu
 import { MatrixSchema } from '@/types/matrix.types';
 import { WorkflowStorageService } from '@/services/workflow-storage.service';
 import { AppHeader } from '@/components/layout/app-header.component';
-import { CreateWorkflowModal } from '@/components/matrix-editor/create-workflow-modal.component';
 
 interface WorkflowDirectoryPageProps {
   onOpenBuilder: (workflowId: string) => void;
@@ -11,15 +10,23 @@ interface WorkflowDirectoryPageProps {
 
 export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({ onOpenBuilder }) => {
   const [workflows, setWorkflows] = useState<MatrixSchema[]>([]);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
     setWorkflows(WorkflowStorageService.getAll());
   }, []);
 
-  const handleCreateWorkflow = (newMatrix: MatrixSchema) => {
+  const handleCreateWorkflow = () => {
+    const id = `wf_matrix_${Date.now()}`;
+    const newMatrix: MatrixSchema = {
+      id,
+      name: 'Untitled Matrix Workflow',
+      description: 'Newly initialized 2D decision matrix workflow.',
+      version: '1.0.0',
+      columns: [],
+      rows: [],
+      cells: {},
+    };
     WorkflowStorageService.save(newMatrix);
-    setWorkflows(WorkflowStorageService.getAll());
     onOpenBuilder(newMatrix.id);
   };
 
@@ -32,7 +39,7 @@ export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({ on
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-emerald-100 selection:text-emerald-900">
       {/* Top Navigation */}
-      <AppHeader onOpenCreateModal={() => setIsCreateModalOpen(true)} />
+      <AppHeader onCreateMatrix={handleCreateWorkflow} />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
@@ -49,7 +56,7 @@ export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({ on
           </div>
 
           <button
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={handleCreateWorkflow}
             className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center space-x-2 shadow-sm transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4" />
@@ -70,7 +77,7 @@ export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({ on
               </p>
             </div>
             <button
-              onClick={() => setIsCreateModalOpen(true)}
+              onClick={handleCreateWorkflow}
               className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs inline-flex items-center space-x-1.5 shadow-xs cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -137,13 +144,6 @@ export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({ on
           </div>
         )}
       </main>
-
-      {/* Create Workflow Modal */}
-      <CreateWorkflowModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onCreate={handleCreateWorkflow}
-      />
     </div>
   );
 };

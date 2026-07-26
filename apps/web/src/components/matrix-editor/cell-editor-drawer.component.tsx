@@ -10,6 +10,8 @@ interface CellEditorDrawerProps {
   cell?: CellSchema;
   availableSubWorkflows?: MatrixSchema[];
   onSaveCell: (updatedCell: CellSchema) => void;
+  onCreateMatrix?: () => void;
+  onSelectSubWorkflow?: (subWorkflowId: string) => void;
 }
 
 export const CellEditorDrawer: React.FC<CellEditorDrawerProps> = ({
@@ -18,7 +20,10 @@ export const CellEditorDrawer: React.FC<CellEditorDrawerProps> = ({
   row,
   column,
   cell,
+  availableSubWorkflows = [],
   onSaveCell,
+  onCreateMatrix,
+  onSelectSubWorkflow,
 }) => {
   const [action, setAction] = useState<CellActionType>('passthrough');
   const [enabled, setEnabled] = useState(true);
@@ -293,8 +298,36 @@ export const CellEditorDrawer: React.FC<CellEditorDrawerProps> = ({
         {/* Config for Sub-Workflow Rows */}
         {!isPlainRow && (action === 'trigger_sub_workflow' || action === 'override_sub_workflow') && (
           <div className="space-y-4 font-mono text-xs">
-            <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-purple-900 text-[11px]">
-              Sub-Workflow Bound: <span className="font-bold">{row.subWorkflowId || 'wf_notification_sub'}</span>
+            <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-purple-900 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-xs">Target Sub-Workflow Matrix:</span>
+                {onCreateMatrix && (
+                  <button
+                    type="button"
+                    onClick={onCreateMatrix}
+                    className="px-2 py-1 rounded bg-purple-600 hover:bg-purple-700 text-white font-sans text-[11px] font-bold flex items-center space-x-1 cursor-pointer transition-colors shadow-2xs"
+                  >
+                    <Plus className="h-3 w-3" />
+                    <span>Create New Matrix</span>
+                  </button>
+                )}
+              </div>
+
+              <select
+                value={row.subWorkflowId || availableSubWorkflows[0]?.id || ''}
+                onChange={(e) => onSelectSubWorkflow?.(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded bg-white border border-purple-300 text-purple-950 font-mono text-xs focus:outline-none focus:border-purple-600"
+              >
+                {availableSubWorkflows.length > 0 ? (
+                  availableSubWorkflows.map((wf) => (
+                    <option key={wf.id} value={wf.id}>
+                      {wf.name} ({wf.id})
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No sub-workflows available</option>
+                )}
+              </select>
             </div>
 
             <div className="space-y-1">
