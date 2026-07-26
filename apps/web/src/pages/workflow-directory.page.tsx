@@ -22,8 +22,8 @@ export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({ on
       name: 'Untitled Matrix Workflow',
       description: 'Newly initialized 2D decision matrix workflow.',
       version: '1.0.0',
-      columns: [],
-      rows: [],
+      columns: [{ id: `col_${Date.now()}`, label: 'Step 1', order: 0 }],
+      rows: [{ id: `row_${Date.now()}`, label: 'Row #1', order: 0, type: 'standard' }],
       cells: {},
     };
     WorkflowStorageService.save(newMatrix);
@@ -126,7 +126,7 @@ export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({ on
                       <span>{wf.columns.length} Steps</span>
                     </div>
                     <div>•</div>
-                    <div>{wf.rows.length} Domain Rows</div>
+                    <div>{wf.rows.length} Rows</div>
                   </div>
                 </div>
 

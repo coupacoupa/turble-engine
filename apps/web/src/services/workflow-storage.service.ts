@@ -14,10 +14,10 @@ const SEED_WORKFLOW: MatrixSchema = {
     { id: 'col_decision', label: '4. Final Decision', order: 3 },
   ],
   rows: [
-    { id: 'row_applicant', label: 'Applicant Data Interceptor', order: 0, type: 'plain', isInterceptor: true },
-    { id: 'row_bureau', label: 'Bureau Credit Scorecard', order: 1, type: 'plain' },
+    { id: 'row_applicant', label: 'Applicant Data Interceptor', order: 0, type: 'standard', isInterceptor: true },
+    { id: 'row_bureau', label: 'Bureau Credit Scorecard', order: 1, type: 'standard' },
     { id: 'row_sub_kyc', label: 'KYC / AML Sub-Workflow', order: 2, type: 'workflow', subWorkflowId: 'wf_kyc_verification' },
-    { id: 'row_limit', label: 'Credit Limit Calculator', order: 3, type: 'plain' },
+    { id: 'row_limit', label: 'Credit Limit Calculator', order: 3, type: 'standard' },
   ],
   cells: {
     'row_applicant:col_intake': {
@@ -58,6 +58,11 @@ const SEED_WORKFLOW: MatrixSchema = {
       },
     },
   },
+  inputs: [
+    { id: 'inp_age', key: 'age', type: 'number', required: true, defaultValue: 28 },
+    { id: 'inp_score', key: 'creditScore', type: 'number', required: true, defaultValue: 720 },
+    { id: 'inp_ssn', key: 'applicant_ssn', type: 'string', required: true, defaultValue: '999-00-1234' },
+  ],
 };
 
 export class WorkflowStorageService {

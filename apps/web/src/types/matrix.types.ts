@@ -1,4 +1,4 @@
-export type RowType = 'plain' | 'workflow';
+export type RowType = 'standard' | 'workflow';
 
 export type PlainCellAction = 'table_rule' | 'expression' | 'api_call' | 'event_emitter' | 'passthrough';
 export type WorkflowCellAction = 'trigger_sub_workflow' | 'override_sub_workflow' | 'skip_sub_workflow';
@@ -44,11 +44,26 @@ export interface SubWorkflowTriggerConfig {
   parameterOverrides?: Record<string, any>;
 }
 
+export interface CellActionItem {
+  id: string;
+  order: number;
+  type: CellActionType;
+  enabled?: boolean;
+  inputs?: string[];
+  outputs?: string[];
+  tableRuleConfig?: TableRuleConfig;
+  expressionConfig?: ExpressionConfig;
+  apiCallConfig?: ApiCallConfig;
+  eventEmitterConfig?: EventEmitterConfig;
+  subWorkflowConfig?: SubWorkflowTriggerConfig;
+}
+
 export interface CellSchema {
   id: string;
   rowId: string;
   colId: string;
-  action: CellActionType;
+  action?: CellActionType;
+  actions?: CellActionItem[];
   enabled?: boolean;
   
   tableRuleConfig?: TableRuleConfig;
@@ -74,6 +89,24 @@ export interface DomainRowSchema {
   isInterceptor?: boolean;
 }
 
+export type InputValueType = 'string' | 'number' | 'boolean' | 'object' | 'array';
+
+export interface WorkflowInputField {
+  id: string;
+  key: string;
+  type: InputValueType;
+  required?: boolean;
+  defaultValue?: any;
+}
+
+export interface WorkflowOutputField {
+  id: string;
+  key: string;
+  type: InputValueType;
+  sourceCellId?: string;
+  description?: string;
+}
+
 export interface MatrixSchema {
   id: string;
   name: string;
@@ -82,6 +115,8 @@ export interface MatrixSchema {
   columns: StepColumnSchema[];
   rows: DomainRowSchema[];
   cells: Record<string, CellSchema>;
+  inputs?: WorkflowInputField[];
+  outputSchema?: WorkflowOutputField[];
 }
 
 export interface EmittedCellEvent {

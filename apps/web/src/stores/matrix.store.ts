@@ -13,8 +13,8 @@ export const INITIAL_WORKFLOWS: MatrixSchema[] = [
       { id: 'col_underwrite', label: '3. Underwriting Decision', order: 2 },
     ],
     rows: [
-      { id: 'row_auth', label: 'OAuth Security Guard', order: 0, type: 'plain', isInterceptor: true },
-      { id: 'row_bureau', label: 'Credit Bureau Engine', order: 1, type: 'plain' },
+      { id: 'row_auth', label: 'OAuth Security Guard', order: 0, type: 'standard', isInterceptor: true },
+      { id: 'row_bureau', label: 'Credit Bureau Engine', order: 1, type: 'standard' },
       { id: 'row_notify', label: 'Notification Hub', order: 2, type: 'workflow', subWorkflowId: 'wf_notification_sub' },
     ],
     cells: {
@@ -68,5 +68,10 @@ export const INITIAL_WORKFLOWS: MatrixSchema[] = [
         },
       },
     },
+    inputs: [
+      { id: 'inp_1', key: 'creditScore', type: 'number', required: true, defaultValue: 720 },
+      { id: 'inp_2', key: 'dti', type: 'number', required: true, defaultValue: 0.3 },
+      { id: 'inp_3', key: 'applicantEmail', type: 'string', required: false, defaultValue: 'applicant@example.com' },
+    ],
   },
 ];
