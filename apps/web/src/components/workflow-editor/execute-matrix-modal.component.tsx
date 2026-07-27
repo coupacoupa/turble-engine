@@ -50,11 +50,11 @@ export const ExecuteMatrixModal: React.FC<ExecuteMatrixModalProps> = ({
               <Code className="h-4 w-4" />
             </div>
             <DialogTitle className="text-sm font-bold text-slate-900 tracking-tight">
-              Run Matrix Execution
+              Run Matrix
             </DialogTitle>
           </div>
           <DialogDescription className="text-xs text-slate-500 font-mono pt-1">
-            Provide the initial input context JSON payload to execute against the 2D matrix engine.
+            Provide the initial input context JSON payload to run against the 2D matrix engine.
           </DialogDescription>
         </DialogHeader>
 
@@ -95,7 +95,7 @@ export const ExecuteMatrixModal: React.FC<ExecuteMatrixModalProps> = ({
               className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50"
             >
               <Play className="h-3.5 w-3.5 fill-current" />
-              <span>{isExecuting ? 'Running Engine...' : 'Start Execution'}</span>
+              <span>{isExecuting ? 'Running Engine...' : 'Run Matrix'}</span>
             </Button>
           </DialogFooter>
         </form>

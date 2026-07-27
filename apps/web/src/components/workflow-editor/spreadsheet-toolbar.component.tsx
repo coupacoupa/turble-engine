@@ -327,15 +327,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
         {/* Right: Global Actions */}
         <div className="flex items-center space-x-2">
           <button
-            onClick={onOpenValidation}
-            className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-mono text-[11px] font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-2xs"
-            title="Run Audit & Rule Validation"
-          >
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-            <span>Audit</span>
-          </button>
-
-          <button
             onClick={onExportJson}
             className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-mono text-[11px] font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-2xs"
             title="Export JSON Schema"
@@ -350,7 +341,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
             className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-50"
           >
             <Play className="h-3.5 w-3.5 fill-current" />
-            <span>{isExecuting ? 'Running...' : 'Execute'}</span>
+            <span>{isExecuting ? 'Running...' : 'Run'}</span>
           </button>
         </div>
       </div>
