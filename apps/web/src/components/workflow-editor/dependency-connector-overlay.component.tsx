@@ -6,6 +6,7 @@ export interface ActiveDependency {
   variableName: string;
   isWorkflowInput?: boolean;
   type?: 'incoming' | 'outgoing' | 'clash';
+  value?: any;
 }
 
 interface DependencyConnectorOverlayProps {
@@ -18,6 +19,7 @@ interface RenderedPath {
   id: string;
   variableName: string;
   type: 'incoming' | 'outgoing' | 'clash';
+  value?: any;
   x1: number;
   y1: number;
   x2: number;
@@ -94,7 +96,7 @@ export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProp
       const cy2 = y2;
 
       // Vertical stagger offset for multiple overlapping arrows
-      const stagger = (idx % 3 - 1) * 16;
+      const stagger = ((idx % 5) - 2) * 18;
       const midX = (x1 + x2) / 2;
       const midY = (y1 + y2) / 2 + (dy > 0 ? -12 : 12) + stagger;
 
@@ -104,6 +106,7 @@ export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProp
         id: `dep_${idx}_${dep.variableName}_${dep.type || 'inc'}_${x1.toFixed(0)}_${y1.toFixed(0)}`,
         variableName: dep.variableName,
         type: dep.type || 'incoming',
+        value: dep.value,
         x1,
         y1,
         x2,
@@ -207,8 +210,8 @@ export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProp
                 d={p.pathD}
                 fill="none"
                 stroke={primaryColor}
-                strokeWidth={isClash ? "4" : "3"}
-                strokeOpacity={isClash ? "0.2" : "0.12"}
+                strokeWidth={isClash ? "4" : p.value !== undefined ? "3.5" : "3"}
+                strokeOpacity={isClash ? "0.2" : p.value !== undefined ? "0.25" : "0.12"}
                 strokeLinecap="round"
               />
 
@@ -217,7 +220,7 @@ export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProp
                 d={p.pathD}
                 fill="none"
                 stroke={primaryColor}
-                strokeWidth={isClash ? "2.2" : "1.8"}
+                strokeWidth={isClash ? "2.2" : p.value !== undefined ? "2.2" : "1.8"}
                 strokeDasharray={isClash ? "6 4" : "8 5"}
                 markerEnd={markerUrl}
                 strokeLinecap="round"
@@ -234,16 +237,28 @@ export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProp
         })}
       </svg>
 
-      {/* Sleek Differentiated Variable Label Badges */}
+      {/* Variable & Runtime Value Label Badges */}
       {paths.map((p) => {
         const isClash = p.type === 'clash';
         const isIncoming = p.type === 'incoming';
 
+        const hasValue = p.value !== undefined;
+        const formattedVal = hasValue
+          ? typeof p.value === 'object'
+            ? JSON.stringify(p.value)
+            : String(p.value)
+          : null;
+
         const badgeBorder = isClash
-          ? 'border-rose-500 bg-rose-950 text-rose-200'
+          ? 'border-rose-500 bg-rose-950 text-rose-200 shadow-rose-900/30'
           : isIncoming
-          ? 'border-sky-500/80 bg-slate-900 text-sky-200'
+          ? hasValue
+            ? 'border-sky-400 bg-slate-950 text-sky-200 shadow-sky-900/40 ring-1 ring-sky-500/50'
+            : 'border-sky-500/80 bg-slate-900 text-sky-200'
+          : hasValue
+          ? 'border-emerald-400 bg-slate-950 text-emerald-200 shadow-emerald-900/40 ring-1 ring-emerald-500/50'
           : 'border-emerald-500/80 bg-slate-900 text-emerald-200';
+
         const dotBg = isClash ? 'bg-rose-500' : isIncoming ? 'bg-sky-400' : 'bg-emerald-400';
 
         return (
@@ -254,14 +269,29 @@ export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProp
               top: `${p.midY}px`,
               transform: 'translate(-50%, -50%)',
             }}
-            className={`absolute z-50 px-2 py-0.5 rounded-md font-mono text-[10px] font-bold flex items-center space-x-1 shadow-md border animate-in fade-in duration-100 ${badgeBorder}`}
+            className={`absolute z-50 px-2 py-0.5 rounded-md font-mono text-[10px] font-bold flex items-center space-x-1.5 shadow-md border animate-in fade-in duration-100 ${badgeBorder}`}
           >
-            <span className={`w-1.5 h-1.5 rounded-full ${dotBg}`} />
-            <span>{isClash ? `⚠️ CLASH: ${p.variableName}` : p.variableName}</span>
-            <span className="text-slate-400">➔</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${dotBg} shrink-0`} />
+            {isClash ? (
+              <span>⚠️ CLASH: {p.variableName}</span>
+            ) : (
+              <div className="flex items-center space-x-1">
+                <span className="text-slate-300">{p.variableName}</span>
+                {formattedVal !== null && (
+                  <>
+                    <span className="text-slate-500 font-normal">=</span>
+                    <span className="text-amber-300 font-extrabold px-1 rounded bg-amber-500/20 border border-amber-400/30">
+                      {formattedVal}
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+            <span className="text-slate-400 text-[9px]">➔</span>
           </div>
         );
       })}
     </div>
   );
 };
+

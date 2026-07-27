@@ -4,6 +4,12 @@ import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType, CellSchema } 
 import { DependencyConnectorOverlay, ActiveDependency } from '@/components/workflow-editor/dependency-connector-overlay.component';
 import { WorkflowValidationService } from '@/services/workflow-validation.service';
 
+export interface CellExecutionState {
+  mutatedPayload?: Record<string, any>;
+  matchedRule?: string;
+  latencyMs?: number;
+}
+
 interface MatrixSheetProps {
   matrix: MatrixSchema;
   activeStepIndex?: number;
@@ -11,6 +17,7 @@ interface MatrixSheetProps {
   selectedColId?: string;
   activeDependency?: ActiveDependency | null;
   dependencies?: ActiveDependency[];
+  cellExecutionResults?: Record<string, CellExecutionState>;
   onSelectCell: (row: DomainRowSchema, col: StepColumnSchema, cell?: CellSchema) => void;
   onDoubleClickCell?: (row: DomainRowSchema, col: StepColumnSchema, cell?: CellSchema) => void;
   onAddColumn: () => void;
@@ -45,6 +52,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
   selectedColId,
   activeDependency,
   dependencies = [],
+  cellExecutionResults,
   onSelectCell,
   onDoubleClickCell,
   onAddColumn,
@@ -218,7 +226,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
       >
         <DependencyConnectorOverlay activeDependency={activeDependency} dependencies={dependencies} containerRef={scrollRef} />
 
-        <table className="text-left border-collapse min-w-max">
+        <table className="text-left border-collapse min-w-max border-t border-l border-slate-200">
           {/* Column sizing hints */}
           <colgroup>
             <col style={{ width: rowHeaderWidth }} />
@@ -233,7 +241,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
               {/* Frozen Top-Left Corner Cell (0,0) */}
               <th
                 data-corner-header="true"
-                className="sticky top-0 left-0 z-30 bg-slate-200 border-r border-b border-slate-300 p-2.5 text-center text-slate-500 font-bold text-[11px] shadow-2xs relative"
+                className="sticky top-0 left-0 z-30 bg-slate-200 border-r border-b border-slate-200 p-2.5 text-center text-slate-500 font-bold text-[11px] relative"
                 style={{ width: rowHeaderWidth }}
               >
                 <div className="flex items-center justify-between text-slate-600 font-semibold px-1">
@@ -247,7 +255,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                   onMouseDown={handleRowHeaderResizeStart}
                   onDoubleClick={() => setRowHeaderWidth(ROW_HEADER_DEFAULT_WIDTH)}
                 >
-                  <div className="absolute top-0 right-0 w-[1px] h-full bg-slate-300 group-hover/resize:bg-emerald-500 group-active/resize:bg-emerald-600 transition-colors" />
+                  <div className="absolute top-0 right-0 w-[2px] h-full opacity-0 group-hover/resize:opacity-100 group-hover/resize:bg-emerald-500 group-active/resize:bg-emerald-600 transition-opacity" />
                 </div>
               </th>
 
@@ -262,9 +270,9 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                     key={col.id}
                     data-col-id={col.id}
                     style={{ width: w, minWidth: MIN_COL_WIDTH }}
-                    className={`sticky top-0 z-20 border-r border-b border-slate-300 p-2.5 transition-colors relative group shadow-2xs ${
+                    className={`sticky top-0 z-20 border-r border-b border-slate-200 p-2.5 transition-colors relative group ${
                       isActiveStep
-                        ? 'bg-emerald-100 text-emerald-900 border-b-2 border-b-emerald-600'
+                        ? 'bg-emerald-100 text-emerald-900 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-emerald-600'
                         : isColSelected
                         ? 'bg-emerald-50 text-emerald-900'
                         : 'bg-slate-100 hover:bg-slate-200/80 text-slate-800'
@@ -297,7 +305,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                       onMouseDown={(e) => handleColResizeStart(e, col.id)}
                       onDoubleClick={() => handleColResizeDoubleClick(col.id)}
                     >
-                      <div className="absolute top-0 right-0 w-[1px] h-full bg-slate-300 group-hover/resize:bg-emerald-500 group-active/resize:bg-emerald-600 transition-colors" />
+                      <div className="absolute top-0 right-0 w-[2px] h-full opacity-0 group-hover/resize:opacity-100 group-hover/resize:bg-emerald-500 group-active/resize:bg-emerald-600 transition-opacity" />
                     </div>
                   </th>
                 );
@@ -306,7 +314,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
           </thead>
 
           {/* Matrix Rows & Spreadsheet Cells */}
-          <tbody className="divide-y divide-slate-200 font-mono text-xs bg-white">
+          <tbody className="font-mono text-xs bg-white">
             {sortedRows.map((row, rIdx) => {
               const isRowSelected = selectedRowId === row.id;
               const h = rowHeights[row.id] ?? DEFAULT_ROW_HEIGHT;
@@ -316,7 +324,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                   {/* Frozen Row Header Column (1, 2, 3...) */}
                   <td
                     style={{ width: rowHeaderWidth, height: h }}
-                    className={`sticky left-0 z-20 p-2.5 border-r border-b border-slate-300 relative group shadow-2xs ${
+                    className={`sticky left-0 z-20 p-2.5 border-r border-b border-slate-200 relative group ${
                       row.isInterceptor
                         ? 'bg-amber-100/80 text-amber-950'
                         : isRowSelected
@@ -384,7 +392,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                       onMouseDown={(e) => handleRowResizeStart(e, row.id)}
                       onDoubleClick={() => handleRowResizeDoubleClick(row.id)}
                     >
-                      <div className="absolute bottom-0 left-0 w-full h-[1px] bg-slate-300 group-hover/resize:bg-emerald-500 group-active/resize:bg-emerald-600 transition-colors" />
+                      <div className="absolute bottom-0 left-0 w-full h-[2px] opacity-0 group-hover/resize:opacity-100 group-hover/resize:bg-emerald-500 group-active/resize:bg-emerald-600 transition-opacity" />
                     </div>
                   </td>
 
@@ -394,6 +402,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                     const cell = matrix.cells[cellKey];
                     const isActiveStep = activeStepIndex === cIdx;
                     const isSelectedCell = selectedRowId === row.id && selectedColId === col.id;
+                    const execState = cellExecutionResults?.[cellKey];
 
                     const actionsList = cell?.actions && cell.actions.length > 0
                       ? cell.actions
@@ -426,6 +435,8 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                             ? hasIssues
                               ? 'ring-2 ring-rose-600 bg-rose-50/70 z-10'
                               : 'ring-2 ring-emerald-600 bg-emerald-50/40 z-10'
+                            : execState?.mutatedPayload && Object.keys(execState.mutatedPayload).length > 0
+                            ? 'bg-emerald-50/40 hover:bg-emerald-100/60 border-emerald-300'
                             : hasIssues
                             ? 'bg-rose-50/50 hover:bg-rose-100/70 border-rose-200'
                             : isActiveStep
@@ -461,12 +472,18 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                               ) : (
                                 <span
                                   className={`px-1.5 py-0.2 rounded border font-bold text-[9px] ${
-                                    actionCount > 1
+                                    execState?.mutatedPayload && Object.keys(execState.mutatedPayload).length > 0
+                                      ? 'bg-amber-100 text-amber-950 border-amber-400'
+                                      : actionCount > 1
                                       ? 'bg-purple-50 text-purple-700 border-purple-300'
                                       : 'bg-emerald-50 text-emerald-700 border-emerald-300'
                                   }`}
                                 >
-                                  {actionCount > 1 ? `${actionCount} ACTIONS` : `RULES (${ruleCount})`}
+                                  {execState?.mutatedPayload && Object.keys(execState.mutatedPayload).length > 0
+                                    ? 'MUTATED'
+                                    : actionCount > 1
+                                    ? `${actionCount} ACTIONS`
+                                    : `RULES (${ruleCount})`}
                                 </span>
                               )}
                             </div>
@@ -503,15 +520,30 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                                   <span className="truncate text-slate-600">Decision Table Configured</span>
                                 )}
                               </div>
-                              <div className={`text-[9px] truncate font-mono ${hasIssues ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
-                                {hasIssues
-                                  ? unresolvedInputs.length > 0
-                                    ? `Missing input source: ${unresolvedInputs.join(', ')}`
-                                    : `Output conflict: ${clashingOutputs.join(', ')}`
-                                  : ruleCount > 0
-                                  ? `${ruleCount} rule matches set`
-                                  : 'Sub-Workflow Step'}
-                              </div>
+
+                              {/* Evaluated Execution Mutated State Badge */}
+                              {execState?.mutatedPayload && Object.keys(execState.mutatedPayload).length > 0 ? (
+                                <div className="mt-1 bg-amber-50 text-amber-950 border border-amber-300 rounded px-1.5 py-0.5 text-[9.5px] font-mono font-bold truncate flex items-center justify-between shadow-2xs">
+                                  <span className="truncate">
+                                    {Object.entries(execState.mutatedPayload)
+                                      .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+                                      .join(', ')}
+                                  </span>
+                                  {execState.latencyMs !== undefined && (
+                                    <span className="text-[8px] text-amber-700 shrink-0 ml-1 font-semibold">{execState.latencyMs}ms</span>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className={`text-[9px] truncate font-mono ${hasIssues ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
+                                  {hasIssues
+                                    ? unresolvedInputs.length > 0
+                                      ? `Missing input source: ${unresolvedInputs.join(', ')}`
+                                      : `Output conflict: ${clashingOutputs.join(', ')}`
+                                    : ruleCount > 0
+                                    ? `${ruleCount} rule matches set`
+                                    : 'Sub-Workflow Step'}
+                                </div>
+                              )}
                             </div>
                           </div>
                         ) : (

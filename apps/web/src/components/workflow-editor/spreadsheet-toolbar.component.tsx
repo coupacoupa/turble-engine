@@ -22,6 +22,7 @@ import {
   FileSpreadsheet,
   FileText,
   Upload,
+  RefreshCw,
 } from 'lucide-react';
 import {
   MatrixSchema,
@@ -52,6 +53,8 @@ interface SpreadsheetToolbarProps {
   onOpenValidation: () => void;
   onExportJson: () => void;
   onUpdateInputs?: (inputs: WorkflowInputField[]) => void;
+  onToggleInputOverridePanel?: () => void;
+  isInputOverridePanelOpen?: boolean;
 }
 
 export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
@@ -71,6 +74,8 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
   onOpenValidation,
   onExportJson,
   onUpdateInputs,
+  onToggleInputOverridePanel,
+  isInputOverridePanelOpen = true,
 }) => {
   const [isInputsModalOpen, setIsInputsModalOpen] = useState(false);
   const [isOutputsModalOpen, setIsOutputsModalOpen] = useState(false);
@@ -440,26 +445,68 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
           </div>
         ) : (
           /* Test Mode Sub-bar */
-          <div className="flex items-center justify-between w-full space-x-4">
-            <div className="flex items-center space-x-3 flex-1 min-w-0">
+          <div className="flex items-center justify-between w-full space-x-3">
+            <div className="flex items-center space-x-2 shrink-0">
               <span className="bg-purple-100 text-purple-900 border border-purple-300 px-2 py-0.5 rounded font-bold text-[10px] flex items-center space-x-1 shrink-0">
                 <FlaskConical className="h-3.5 w-3.5 text-purple-700" />
-                <span>TEST SIMULATION TOOLBOX</span>
+                <span>TEST LAB</span>
               </span>
 
-              <span className="text-slate-600 text-xs truncate">
-                Simulate end-to-end payload execution, rule evaluation, and step mutation records.
-              </span>
+              {onToggleInputOverridePanel && (
+                <button
+                  onClick={onToggleInputOverridePanel}
+                  className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg font-mono text-[11px] font-bold border transition-all cursor-pointer shadow-2xs ${
+                    isInputOverridePanelOpen
+                      ? 'bg-slate-900 text-emerald-400 border-slate-800'
+                      : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                  }`}
+                  title="Toggle Input Overrides Side Panel"
+                >
+                  <Sliders className="h-3.5 w-3.5 text-emerald-500" />
+                  <span>Input Overrides</span>
+                </button>
+              )}
             </div>
+
+            <div className="h-4 w-px bg-slate-300 shrink-0" />
+
+            {/* Cluster 2: Workflow Inputs Button */}
+            <button
+              data-workflow-inputs-button="true"
+              onClick={() => setIsInputsModalOpen(true)}
+              className="flex items-center space-x-2 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100/80 text-blue-900 border border-blue-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
+              title="View Workflow Input Definitions"
+            >
+              <Database className="h-3.5 w-3.5 text-blue-600" />
+              <span className="font-bold">Inputs ({inputs.length})</span>
+            </button>
+
+            <div className="h-4 w-px bg-slate-300 shrink-0" />
+
+            {/* Cluster 3: Outputs Summary Button */}
+            <button
+              onClick={() => setIsOutputsModalOpen(true)}
+              className="flex items-center space-x-2 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100/80 text-emerald-900 border border-emerald-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
+              title="View Derived Decision Outputs"
+            >
+              <ArrowRight className="h-3.5 w-3.5 text-emerald-600" />
+              <span className="font-bold">Outputs ({derivedOutputs.length})</span>
+            </button>
+
+            <div className="flex-1 min-w-0" />
 
             <div className="flex items-center space-x-2 shrink-0">
               <button
                 onClick={onRunExecution}
                 disabled={isExecuting}
-                className="px-3.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center space-x-1.5 transition-colors cursor-pointer shadow-2xs"
+                className="px-3.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center space-x-1.5 transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
               >
-                <Zap className="h-3.5 w-3.5 fill-current" />
-                <span>Run Test Simulation</span>
+                {isExecuting ? (
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Zap className="h-3.5 w-3.5 fill-current" />
+                )}
+                <span>{isExecuting ? 'Simulating...' : 'Run Test Simulation'}</span>
               </button>
             </div>
           </div>

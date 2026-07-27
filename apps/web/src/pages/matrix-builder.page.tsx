@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType, CellSchema } from '@/types/matrix.types';
 import { MatrixEvaluatorConnectService, type MatrixExecutionResult } from '@/services/matrix-evaluator.service';
 import { WorkflowStorageService } from '@/services/workflow-storage.service';
 import { SpreadsheetToolbar, WorkflowStudioTab } from '@/components/workflow-editor/spreadsheet-toolbar.component';
-import { MatrixSheet } from '@/components/workflow-editor/matrix-sheet.component';
-import { TestLab } from '@/components/workflow-editor/test-lab.component';
+import { MatrixSheet, CellExecutionState } from '@/components/workflow-editor/matrix-sheet.component';
+import { TestInputOverridePanel } from '@/components/workflow-editor/test-input-override-panel.component';
 import { CellEditorModal } from '@/components/workflow-editor/cell-editor-modal.component';
 import { ActiveDependency } from '@/components/workflow-editor/dependency-connector-overlay.component';
 import { TimeTravelBar } from '@/components/debugger/time-travel-bar.component';
@@ -17,6 +17,14 @@ interface MatrixBuilderPageProps {
   onBackToDashboard: () => void;
 }
 
+const DEFAULT_TEST_INPUTS: Record<string, any> = {
+  applicantScore: 740,
+  dti: 0.25,
+  annualIncome: 95000,
+  requestedAmount: 15000,
+  employmentStatus: 'FULL_TIME',
+};
+
 export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId, onBackToDashboard }) => {
   const [matrix, setMatrix] = useState<MatrixSchema | undefined>(() => WorkflowStorageService.getById(workflowId));
   const [activeTab, setActiveTab] = useState<WorkflowStudioTab>('design');
@@ -28,6 +36,10 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
   const [selectedCell, setSelectedCell] = useState<CellSchema | undefined>();
   const [activeDependency, setActiveDependency] = useState<ActiveDependency | null>(null);
   const [activeDependencies, setActiveDependencies] = useState<ActiveDependency[]>([]);
+
+  // Test & Debug input state & override side panel toggle
+  const [testInputPayload, setTestInputPayload] = useState<Record<string, any>>(DEFAULT_TEST_INPUTS);
+  const [isInputOverridePanelOpen, setIsInputOverridePanelOpen] = useState<boolean>(true);
 
   // Modals & Replay state
   const [isExecuteModalOpen, setIsExecuteModalOpen] = useState(false);
@@ -423,6 +435,98 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
     return { currentPayload: stepRecord.finalPayload, activeStepRecord: stepRecord };
   })();
 
+  // Cell execution results map for rendering inside spreadsheet cells
+  const cellExecutionResults = useMemo(() => {
+    if (!executionResult) return {};
+    const map: Record<string, CellExecutionState> = {};
+    const stepRecords = executionResult.eventLog?.stepRecords || [];
+    const maxIdx = activeTab === 'test' ? currentStepIndex : stepRecords.length - 1;
+
+    stepRecords.slice(0, maxIdx + 1).forEach((rec) => {
+      rec.cellResults?.forEach((cellRes) => {
+        map[`${cellRes.rowId}:${cellRes.colId}`] = {
+          mutatedPayload: cellRes.mutatedPayload,
+          latencyMs: cellRes.latencyMs,
+        };
+      });
+    });
+    return map;
+  }, [executionResult, currentStepIndex, activeTab]);
+
+  // Compute test-mode data flow dependencies with values on arrows
+  const testModeDependencies = useMemo(() => {
+    if (activeTab !== 'test') return activeDependencies;
+
+    const payload = stepSnapshot?.currentPayload || executionResult?.finalPayload || testInputPayload;
+    const colOrderMap = new Map(matrix.columns.map((c) => [c.id, c.order]));
+    const rowOrderMap = new Map(matrix.rows.map((r) => [r.id, r.order]));
+
+    const deps: ActiveDependency[] = [];
+
+    Object.values(matrix.cells || {}).forEach((cell) => {
+      if (!cell || !cell.enabled) return;
+      const currentCellKey = `${cell.rowId}:${cell.colId}`;
+
+      const actionsList = cell.actions && cell.actions.length > 0
+        ? cell.actions
+        : cell.action && cell.action !== 'passthrough'
+        ? [{ type: cell.action, inputs: [], outputs: [] }]
+        : [];
+
+      const consumedInputs = Array.from(new Set(actionsList.flatMap((a) => a.inputs || [])));
+
+      consumedInputs.forEach((inpKey) => {
+        let producerKey: string | undefined = undefined;
+        const cOrder = colOrderMap.get(cell.colId);
+        const rOrder = rowOrderMap.get(cell.rowId);
+
+        if (cOrder === undefined || rOrder === undefined) return;
+
+        Object.values(matrix.cells || {}).forEach((otherCell) => {
+          if (otherCell.rowId === cell.rowId && otherCell.colId === cell.colId) return;
+          const otherCOrder = colOrderMap.get(otherCell.colId);
+          const otherROrder = rowOrderMap.get(otherCell.rowId);
+
+          if (otherCOrder === undefined || otherROrder === undefined) return;
+          const isPreceding = otherCOrder < cOrder || (otherCOrder === cOrder && otherROrder < rOrder);
+          if (!isPreceding) return;
+
+          const otherActions = otherCell.actions || (otherCell.action ? [{ type: otherCell.action, outputs: [] }] : []);
+          otherActions.forEach((act) => {
+            if ((act.outputs || []).includes(inpKey)) {
+              producerKey = `${otherCell.rowId}:${otherCell.colId}`;
+            }
+          });
+        });
+
+        const runtimeVal = payload?.[inpKey];
+
+        if (producerKey) {
+          deps.push({
+            sourceCellKey: producerKey,
+            targetCellKey: currentCellKey,
+            variableName: inpKey,
+            type: 'incoming',
+            value: runtimeVal,
+          });
+        } else {
+          const isWfInput = (matrix.inputs || []).some((i) => i.key === inpKey) || (inpKey in (testInputPayload || {}));
+          if (isWfInput) {
+            deps.push({
+              isWorkflowInput: true,
+              targetCellKey: currentCellKey,
+              variableName: inpKey,
+              type: 'incoming',
+              value: runtimeVal,
+            });
+          }
+        }
+      });
+    });
+
+    return deps;
+  }, [activeTab, matrix, executionResult, stepSnapshot, testInputPayload, activeDependencies]);
+
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-100 font-sans overflow-hidden select-none">
       {/* 1. Header & Wireframe Toolbar Layout */}
@@ -437,24 +541,27 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
         onUpdateDescription={handleUpdateDescription}
         onAddColumn={handleAddColumn}
         onAddRow={handleAddRow}
-        onRunExecution={() => setIsExecuteModalOpen(true)}
+        onRunExecution={() => handleStartExecution(testInputPayload)}
         isExecuting={isExecuting}
         onBackToDashboard={onBackToDashboard}
         onOpenValidation={() => setIsValidating(true)}
         onExportJson={handleExportJson}
         onUpdateInputs={handleUpdateInputs}
+        onToggleInputOverridePanel={() => setIsInputOverridePanelOpen((prev) => !prev)}
+        isInputOverridePanelOpen={isInputOverridePanelOpen}
       />
 
-      {/* 2. Main Studio Content View (Sheet / TestLab) */}
-      {activeTab === 'design' ? (
-        <>
+      {/* 2. Main Studio Content View — Unified Sheet View across Design & Test Tabs */}
+      <div className="flex-1 w-full h-full flex flex-row overflow-hidden relative min-h-0">
+        <div className="flex-1 flex flex-col min-w-0 h-full relative">
           <MatrixSheet
             matrix={matrix}
             activeStepIndex={executionResult ? currentStepIndex : undefined}
             selectedRowId={selectedRow?.id}
             selectedColId={selectedCol?.id}
             activeDependency={activeDependency}
-            dependencies={activeDependencies}
+            dependencies={testModeDependencies}
+            cellExecutionResults={cellExecutionResults}
             onSelectCell={handleSelectCell}
             onDoubleClickCell={handleDoubleClickCell}
             onAddColumn={handleAddColumn}
@@ -472,15 +579,22 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
               currentPayload={stepSnapshot?.currentPayload}
             />
           )}
-        </>
-      ) : (
-        <TestLab
-          matrix={matrix}
-          onRunExecution={handleStartExecution}
-          isExecuting={isExecuting}
-          executionResult={executionResult}
-        />
-      )}
+        </div>
+
+        {/* Input Override Side Panel on Test & Debug Tab */}
+        {activeTab === 'test' && (
+          <TestInputOverridePanel
+            matrix={matrix}
+            inputPayload={testInputPayload}
+            onUpdateInputPayload={setTestInputPayload}
+            onRunExecution={handleStartExecution}
+            isExecuting={isExecuting}
+            executionResult={executionResult}
+            isOpen={isInputOverridePanelOpen}
+            onToggleOpen={() => setIsInputOverridePanelOpen((prev) => !prev)}
+          />
+        )}
+      </div>
 
       {/* 3. Floating Draggable & Resizable Cell Editor Modal */}
       <CellEditorModal
@@ -510,3 +624,4 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
     </div>
   );
 };
+
