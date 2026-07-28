@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType, CellSchema } from '@/types/matrix.types';
 import { MatrixEvaluatorConnectService, type MatrixExecutionResult } from '@/services/matrix-evaluator.service';
 import { WorkflowStorageService } from '@/services/workflow-storage.service';
 import { SpreadsheetToolbar, WorkflowStudioTab } from '@/components/workflow-editor/spreadsheet-toolbar.component';
-import { MatrixSheet, CellExecutionState } from '@/components/workflow-editor/matrix-sheet.component';
+import { MatrixSheet, CellExecutionState, getExcelColumnLetter } from '@/components/workflow-editor/matrix-sheet.component';
 import { TestInputOverridePanel } from '@/components/workflow-editor/test-input-override-panel.component';
 import { CellEditorModal } from '@/components/workflow-editor/cell-editor-modal.component';
 import { ActiveDependency } from '@/components/workflow-editor/dependency-connector-overlay.component';
@@ -37,9 +37,32 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
   const [activeDependency, setActiveDependency] = useState<ActiveDependency | null>(null);
   const [activeDependencies, setActiveDependencies] = useState<ActiveDependency[]>([]);
 
+  // Cell Copy / Cut / Paste State
+  const [copiedCell, setCopiedCell] = useState<CellSchema | null>(null);
+  const [copiedCellKey, setCopiedCellKey] = useState<string | null>(null);
+
   // Test & Debug input state & override side panel toggle
   const [testInputPayload, setTestInputPayload] = useState<Record<string, any>>(DEFAULT_TEST_INPUTS);
   const [isInputOverridePanelOpen, setIsInputOverridePanelOpen] = useState<boolean>(true);
+
+  // Show/Hide Dependency Flows setting state
+  const [showFlows, setShowFlows] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('turble_show_flows') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  const handleToggleFlows = useCallback(() => {
+    setShowFlows((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('turble_show_flows', String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
 
   // Modals & Replay state
   const [isExecuteModalOpen, setIsExecuteModalOpen] = useState(false);
@@ -54,6 +77,121 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
       WorkflowStorageService.save(matrix);
     }
   }, [matrix]);
+
+
+
+  // Helper to format cell coordinates as Excel label (e.g. A1, B2)
+  const getCellLabelName = useCallback(
+    (row: DomainRowSchema, col: StepColumnSchema) => {
+      if (!matrix) return `${col.label} ${row.label}`;
+      const sortedCols = [...matrix.columns].sort((a, b) => a.order - b.order);
+      const sortedRows = [...matrix.rows].sort((a, b) => a.order - b.order);
+      const cIdx = sortedCols.findIndex((c) => c.id === col.id);
+      const rIdx = sortedRows.findIndex((r) => r.id === row.id);
+      if (cIdx === -1 || rIdx === -1) return `${col.label} ${row.label}`;
+      return `${getExcelColumnLetter(cIdx)}${rIdx + 1}`;
+    },
+    [matrix]
+  );
+
+  // Copy Cell Handler (Ctrl+C / Cmd+C)
+  const handleCopyCell = useCallback(() => {
+    if (!selectedRow || !selectedCol || !matrix) return;
+    const cellKey = `${selectedRow.id}:${selectedCol.id}`;
+    const cell = matrix.cells[cellKey];
+    if (!cell) {
+      return;
+    }
+    setCopiedCell(cell);
+    setCopiedCellKey(cellKey);
+    try {
+      navigator.clipboard.writeText(JSON.stringify(cell, null, 2));
+    } catch (e) {}
+  }, [selectedRow, selectedCol, matrix]);
+
+  // Cut Cell Handler (Ctrl+X / Cmd+X)
+  const handleCutCell = useCallback(() => {
+    if (!selectedRow || !selectedCol || !matrix) return;
+    const cellKey = `${selectedRow.id}:${selectedCol.id}`;
+    const cell = matrix.cells[cellKey];
+    if (!cell) return;
+
+    setCopiedCell(cell);
+    setCopiedCellKey(cellKey);
+    const label = getCellLabelName(selectedRow, selectedCol);
+    try {
+      navigator.clipboard.writeText(JSON.stringify(cell, null, 2));
+    } catch (e) {}
+
+    setMatrix((prev) => {
+      if (!prev) return prev;
+      const nextCells = { ...prev.cells };
+      delete nextCells[cellKey];
+      return { ...prev, cells: nextCells };
+    });
+
+    setSelectedCell(undefined);
+  }, [selectedRow, selectedCol, matrix]);
+
+  // Paste Cell Handler (Ctrl+V / Cmd+V)
+  const handlePasteCell = useCallback(async () => {
+    if (!selectedRow || !selectedCol || !matrix) return;
+    const targetCellKey = `${selectedRow.id}:${selectedCol.id}`;
+    const label = getCellLabelName(selectedRow, selectedCol);
+
+    let sourceCellToPaste: CellSchema | null = copiedCell;
+
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        const parsed = JSON.parse(text);
+        if (typeof parsed === 'object' && parsed !== null && (parsed.action || parsed.actions)) {
+          sourceCellToPaste = parsed;
+        }
+      }
+    } catch (e) {}
+
+    if (!sourceCellToPaste) {
+      return;
+    }
+
+    const newActions = sourceCellToPaste.actions?.map((act, idx) => ({
+      ...act,
+      id: `act_${Date.now()}_${idx}`,
+    }));
+
+    const pastedCell: CellSchema = {
+      ...sourceCellToPaste,
+      id: `cell_${Date.now()}`,
+      rowId: selectedRow.id,
+      colId: selectedCol.id,
+      actions: newActions,
+    };
+
+    setMatrix((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        cells: {
+          ...prev.cells,
+          [targetCellKey]: pastedCell,
+        },
+      };
+    });
+
+    setSelectedCell(pastedCell);
+  }, [selectedRow, selectedCol, matrix, copiedCell]);
+
+  // Deselect Handler (Escape Key)
+  const handleDeselect = useCallback(() => {
+    setSelectedRow(undefined);
+    setSelectedCol(undefined);
+    setSelectedCell(undefined);
+    setCopiedCell(null);
+    setCopiedCellKey(null);
+    setActiveDependency(null);
+    setActiveDependencies([]);
+  }, []);
 
   if (!matrix) {
     return (
@@ -103,127 +241,244 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
   };
 
   // Cell Single Click Selection Handler — Traces Incoming & Outgoing Dependencies Directly on Sheet
-  const handleSelectCell = (row: DomainRowSchema, col: StepColumnSchema, cell?: CellSchema) => {
-    setSelectedRow(row);
-    setSelectedCol(col);
-    setSelectedCell(cell);
-    setActiveDependency(null);
+  const handleSelectCell = useCallback(
+    (row: DomainRowSchema, col: StepColumnSchema, cell?: CellSchema) => {
+      if (!matrix) return;
+      setSelectedRow(row);
+      setSelectedCol(col);
+      setSelectedCell(cell);
+      setActiveDependency(null);
 
-    const currentCellKey = `${row.id}:${col.id}`;
-    const deps: ActiveDependency[] = [];
+      const currentCellKey = `${row.id}:${col.id}`;
+      const deps: ActiveDependency[] = [];
 
-    const colOrderMap = new Map(matrix.columns.map((c) => [c.id, c.order]));
-    const rowOrderMap = new Map(matrix.rows.map((r) => [r.id, r.order]));
+      const colOrderMap = new Map(matrix.columns.map((c) => [c.id, c.order]));
+      const rowOrderMap = new Map(matrix.rows.map((r) => [r.id, r.order]));
 
-    const actionsList = cell?.actions && cell.actions.length > 0
-      ? cell.actions
-      : cell?.action && cell.action !== 'passthrough'
-      ? [{ type: cell.action, inputs: [], outputs: [], tableRuleConfig: cell.tableRuleConfig }]
-      : [];
+      const actionsList = cell?.actions && cell.actions.length > 0
+        ? cell.actions
+        : cell?.action && cell.action !== 'passthrough'
+        ? [{ type: cell.action, inputs: [], outputs: [], tableRuleConfig: cell.tableRuleConfig }]
+        : [];
 
-    const consumedInputs = Array.from(new Set(actionsList.flatMap((a) => a.inputs || [])));
-    const producedOutputs = Array.from(new Set(actionsList.flatMap((a) => a.outputs || [])));
+      const consumedInputs = Array.from(new Set(actionsList.flatMap((a) => a.inputs || [])));
+      const producedOutputs = Array.from(new Set(actionsList.flatMap((a) => a.outputs || [])));
 
-    // 1. Trace Incoming Dependencies (Producers ➔ Current Cell)
-    consumedInputs.forEach((inpKey) => {
-      let producerKey: string | undefined = undefined;
-      Object.values(matrix.cells || {}).forEach((otherCell) => {
-        if (otherCell.rowId === row.id && otherCell.colId === col.id) return;
-        const cOrder = colOrderMap.get(otherCell.colId);
-        const rOrder = rowOrderMap.get(otherCell.rowId);
+      // 1. Trace Incoming Dependencies (Producers ➔ Current Cell)
+      consumedInputs.forEach((inpKey) => {
+        let producerKey: string | undefined = undefined;
+        Object.values(matrix.cells || {}).forEach((otherCell) => {
+          if (otherCell.rowId === row.id && otherCell.colId === col.id) return;
+          const cOrder = colOrderMap.get(otherCell.colId);
+          const rOrder = rowOrderMap.get(otherCell.rowId);
 
-        if (cOrder === undefined || rOrder === undefined) return;
-        const isPreceding = cOrder < col.order || (cOrder === col.order && rOrder < row.order);
-        if (!isPreceding) return;
+          if (cOrder === undefined || rOrder === undefined) return;
+          const isPreceding = cOrder < col.order || (cOrder === col.order && rOrder < row.order);
+          if (!isPreceding) return;
 
-        const otherActions = otherCell.actions || (otherCell.action ? [{ type: otherCell.action, outputs: [] }] : []);
-        otherActions.forEach((act) => {
-          if ((act.outputs || []).includes(inpKey)) {
-            producerKey = `${otherCell.rowId}:${otherCell.colId}`;
-          }
+          const otherActions = otherCell.actions || (otherCell.action ? [{ type: otherCell.action, outputs: [] }] : []);
+          otherActions.forEach((act) => {
+            if ((act.outputs || []).includes(inpKey)) {
+              producerKey = `${otherCell.rowId}:${otherCell.colId}`;
+            }
+          });
         });
-      });
 
-      if (producerKey) {
-        deps.push({
-          sourceCellKey: producerKey,
-          targetCellKey: currentCellKey,
-          variableName: inpKey,
-          type: 'incoming',
-        });
-        return;
-      }
-
-      const isWfInput = (matrix.inputs || []).some((i) => i.key === inpKey);
-      if (isWfInput) {
-        deps.push({
-          isWorkflowInput: true,
-          targetCellKey: currentCellKey,
-          variableName: inpKey,
-          type: 'incoming',
-        });
-      }
-    });
-
-    // 2. Trace Outgoing Dependencies (Current Cell ➔ Consumer Cells) & Output Clashes
-    producedOutputs.forEach((outKey) => {
-      // Check ALL preceding output clash sources (global inputs or preceding cells)
-      const clashSources = WorkflowValidationService.getAllOutputClashingSources(outKey, matrix, row.id, col.id);
-      clashSources.forEach((src) => {
-        deps.push({
-          sourceCellKey: src.cellKey,
-          isWorkflowInput: src.isWorkflowInput,
-          targetCellKey: currentCellKey,
-          variableName: outKey,
-          type: 'clash',
-        });
-      });
-
-      // Check succeeding cells for outgoing consumers AND output clashes
-      Object.values(matrix.cells || {}).forEach((otherCell) => {
-        if (otherCell.rowId === row.id && otherCell.colId === col.id) return;
-        const cOrder = colOrderMap.get(otherCell.colId);
-        const rOrder = rowOrderMap.get(otherCell.rowId);
-
-        if (cOrder === undefined || rOrder === undefined) return;
-        const isSucceeding = cOrder > col.order || (cOrder === col.order && rOrder > row.order);
-        if (!isSucceeding) return;
-
-        const otherActions = otherCell.actions || (otherCell.action ? [{ type: otherCell.action, inputs: [], outputs: [] }] : []);
-
-        // Check if succeeding cell also OUTPUTS this variable → clash
-        const alsoProducesOutput = otherActions.some((act) => (act.outputs || []).includes(outKey));
-        if (alsoProducesOutput) {
+        if (producerKey) {
           deps.push({
-            sourceCellKey: currentCellKey,
-            targetCellKey: `${otherCell.rowId}:${otherCell.colId}`,
+            sourceCellKey: producerKey,
+            targetCellKey: currentCellKey,
+            variableName: inpKey,
+            type: 'incoming',
+          });
+          return;
+        }
+
+        const isWfInput = (matrix.inputs || []).some((i) => i.key === inpKey);
+        if (isWfInput) {
+          deps.push({
+            isWorkflowInput: true,
+            targetCellKey: currentCellKey,
+            variableName: inpKey,
+            type: 'incoming',
+          });
+        }
+      });
+
+      // 2. Trace Outgoing Dependencies (Current Cell ➔ Consumer Cells) & Output Clashes
+      producedOutputs.forEach((outKey) => {
+        // Check ALL preceding output clash sources (global inputs or preceding cells)
+        const clashSources = WorkflowValidationService.getAllOutputClashingSources(outKey, matrix, row.id, col.id);
+        clashSources.forEach((src) => {
+          deps.push({
+            sourceCellKey: src.cellKey,
+            isWorkflowInput: src.isWorkflowInput,
+            targetCellKey: currentCellKey,
             variableName: outKey,
             type: 'clash',
           });
-        }
+        });
 
-        // Check if succeeding cell consumes this variable as input → normal outgoing
-        otherActions.forEach((act) => {
-          if ((act.inputs || []).includes(outKey)) {
+        // Check succeeding cells for outgoing consumers AND output clashes
+        Object.values(matrix.cells || {}).forEach((otherCell) => {
+          if (otherCell.rowId === row.id && otherCell.colId === col.id) return;
+          const cOrder = colOrderMap.get(otherCell.colId);
+          const rOrder = rowOrderMap.get(otherCell.rowId);
+
+          if (cOrder === undefined || rOrder === undefined) return;
+          const isSucceeding = cOrder > col.order || (cOrder === col.order && rOrder > row.order);
+          if (!isSucceeding) return;
+
+          const otherActions = otherCell.actions || (otherCell.action ? [{ type: otherCell.action, inputs: [], outputs: [] }] : []);
+
+          // Check if succeeding cell also OUTPUTS this variable → clash
+          const alsoProducesOutput = otherActions.some((act) => (act.outputs || []).includes(outKey));
+          if (alsoProducesOutput) {
             deps.push({
               sourceCellKey: currentCellKey,
               targetCellKey: `${otherCell.rowId}:${otherCell.colId}`,
               variableName: outKey,
-              type: 'outgoing',
+              type: 'clash',
             });
           }
+
+          // Check if succeeding cell consumes this variable as input → normal outgoing
+          otherActions.forEach((act) => {
+            if ((act.inputs || []).includes(outKey)) {
+              deps.push({
+                sourceCellKey: currentCellKey,
+                targetCellKey: `${otherCell.rowId}:${otherCell.colId}`,
+                variableName: outKey,
+                type: 'outgoing',
+              });
+            }
+          });
         });
       });
-    });
 
-    setActiveDependencies(deps);
-  };
+      setActiveDependencies(deps);
+    },
+    [matrix]
+  );
 
   // Cell Double Click Handler — Opens Floating Cell Editor Modal
-  const handleDoubleClickCell = (row: DomainRowSchema, col: StepColumnSchema, cell?: CellSchema) => {
-    handleSelectCell(row, col, cell);
-    setIsDrawerOpen(true);
-  };
+  const handleDoubleClickCell = useCallback(
+    (row: DomainRowSchema, col: StepColumnSchema, cell?: CellSchema) => {
+      handleSelectCell(row, col, cell);
+      setIsDrawerOpen(true);
+    },
+    [handleSelectCell]
+  );
+
+  // Arrow Key Navigation Handler (Up, Down, Left, Right)
+  const handleNavigateCell = useCallback(
+    (dir: 'up' | 'down' | 'left' | 'right') => {
+      if (!matrix || !selectedRow || !selectedCol) return;
+      const sortedCols = [...matrix.columns].sort((a, b) => a.order - b.order);
+      const sortedRows = [...matrix.rows].sort((a, b) => a.order - b.order);
+
+      const cIdx = sortedCols.findIndex((c) => c.id === selectedCol.id);
+      const rIdx = sortedRows.findIndex((r) => r.id === selectedRow.id);
+
+      if (cIdx === -1 || rIdx === -1) return;
+
+      let newCIdx = cIdx;
+      let newRIdx = rIdx;
+
+      if (dir === 'left') newCIdx = Math.max(0, cIdx - 1);
+      if (dir === 'right') newCIdx = Math.min(sortedCols.length - 1, cIdx + 1);
+      if (dir === 'up') newRIdx = Math.max(0, rIdx - 1);
+      if (dir === 'down') newRIdx = Math.min(sortedRows.length - 1, rIdx + 1);
+
+      const nextCol = sortedCols[newCIdx];
+      const nextRow = sortedRows[newRIdx];
+
+      if (!nextCol || !nextRow) return;
+
+      const nextCellKey = `${nextRow.id}:${nextCol.id}`;
+      const nextCell = matrix.cells[nextCellKey];
+      handleSelectCell(nextRow, nextCol, nextCell);
+    },
+    [matrix, selectedRow, selectedCol, handleSelectCell]
+  );
+
+  // Global Keyboard listener for Ctrl+C, Ctrl+X, Ctrl+V, Escape, Arrow Keys, Enter
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
+      if (e.key === 'Escape') {
+        if (isDrawerOpen) {
+          setIsDrawerOpen(false);
+          return;
+        }
+        if (isExecuteModalOpen) {
+          setIsExecuteModalOpen(false);
+          return;
+        }
+        if (isValidating) {
+          setIsValidating(false);
+          return;
+        }
+
+        if (selectedRow || selectedCol || selectedCell || copiedCellKey) {
+          e.preventDefault();
+          handleDeselect();
+          return;
+        }
+      }
+
+      if (isInput || isDrawerOpen || isExecuteModalOpen || isValidating) {
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        handleCopyCell();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
+        e.preventDefault();
+        handleCutCell();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+        e.preventDefault();
+        handlePasteCell();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        handleNavigateCell('up');
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        handleNavigateCell('down');
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handleNavigateCell('left');
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleNavigateCell('right');
+      } else if (e.key === 'Enter') {
+        if (selectedRow && selectedCol) {
+          e.preventDefault();
+          handleDoubleClickCell(selectedRow, selectedCol, selectedCell);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    handleCopyCell,
+    handleCutCell,
+    handlePasteCell,
+    handleDeselect,
+    handleNavigateCell,
+    handleDoubleClickCell,
+    selectedRow,
+    selectedCol,
+    selectedCell,
+    copiedCellKey,
+    isDrawerOpen,
+    isExecuteModalOpen,
+    isValidating,
+  ]);
 
   // Hover Input & Output Dependency Tracer Handler
   const handleHoverInput = (inputKey: string | null) => {
@@ -413,6 +668,42 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
     URL.revokeObjectURL(url);
   };
 
+  // Reorder Columns Handler (Drag & Drop)
+  const handleReorderColumns = (reorderedCols: StepColumnSchema[]) => {
+    setMatrix((prev) => (prev ? { ...prev, columns: reorderedCols } : prev));
+  };
+
+  // Reorder Rows Handler (Drag & Drop)
+  const handleReorderRows = (reorderedRows: DomainRowSchema[]) => {
+    setMatrix((prev) => (prev ? { ...prev, rows: reorderedRows } : prev));
+  };
+
+  // Rename Column Handler
+  const handleRenameColumn = (colId: string, newLabel: string) => {
+    const trimmed = newLabel.trim();
+    if (!trimmed) return;
+    setMatrix((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        columns: prev.columns.map((c) => (c.id === colId ? { ...c, label: trimmed } : c)),
+      };
+    });
+  };
+
+  // Rename Row Handler
+  const handleRenameRow = (rowId: string, newLabel: string) => {
+    const trimmed = newLabel.trim();
+    if (!trimmed) return;
+    setMatrix((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        rows: prev.rows.map((r) => (r.id === rowId ? { ...r, label: trimmed } : r)),
+      };
+    });
+  };
+
   // Run Matrix Execution via Connect-RPC Backend
   const handleStartExecution = async (inputPayload: Record<string, any>) => {
     setIsExecuting(true);
@@ -549,6 +840,8 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
         onUpdateInputs={handleUpdateInputs}
         onToggleInputOverridePanel={() => setIsInputOverridePanelOpen((prev) => !prev)}
         isInputOverridePanelOpen={isInputOverridePanelOpen}
+        showFlows={showFlows}
+        onToggleFlows={handleToggleFlows}
       />
 
       {/* 2. Main Studio Content View — Unified Sheet View across Design & Test Tabs */}
@@ -559,9 +852,11 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
             activeStepIndex={executionResult ? currentStepIndex : undefined}
             selectedRowId={selectedRow?.id}
             selectedColId={selectedCol?.id}
+            copiedCellKey={copiedCellKey}
             activeDependency={activeDependency}
             dependencies={testModeDependencies}
             cellExecutionResults={cellExecutionResults}
+            showFlows={showFlows}
             onSelectCell={handleSelectCell}
             onDoubleClickCell={handleDoubleClickCell}
             onAddColumn={handleAddColumn}
@@ -569,6 +864,10 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
             onToggleInterceptor={handleToggleInterceptor}
             onDeleteRow={handleDeleteRow}
             onDeleteColumn={handleDeleteColumn}
+            onReorderColumns={handleReorderColumns}
+            onReorderRows={handleReorderRows}
+            onRenameColumn={handleRenameColumn}
+            onRenameRow={handleRenameRow}
           />
 
           {executionResult && (

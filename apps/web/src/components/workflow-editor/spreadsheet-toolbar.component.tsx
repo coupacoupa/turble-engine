@@ -23,6 +23,7 @@ import {
   FileText,
   Upload,
   RefreshCw,
+  GitBranch,
 } from 'lucide-react';
 import {
   MatrixSchema,
@@ -55,6 +56,8 @@ interface SpreadsheetToolbarProps {
   onUpdateInputs?: (inputs: WorkflowInputField[]) => void;
   onToggleInputOverridePanel?: () => void;
   isInputOverridePanelOpen?: boolean;
+  showFlows?: boolean;
+  onToggleFlows?: () => void;
 }
 
 export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
@@ -76,6 +79,8 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
   onUpdateInputs,
   onToggleInputOverridePanel,
   isInputOverridePanelOpen = true,
+  showFlows = true,
+  onToggleFlows,
 }) => {
   const [isInputsModalOpen, setIsInputsModalOpen] = useState(false);
   const [isOutputsModalOpen, setIsOutputsModalOpen] = useState(false);
@@ -307,7 +312,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Grid className="h-3.5 w-3.5 text-emerald-600" />
+            <Grid className="h-3.5 w-3.5" />
             <span>Design workflow</span>
           </button>
 
@@ -319,7 +324,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <FlaskConical className="h-3.5 w-3.5 text-purple-600" />
+            <FlaskConical className="h-3.5 w-3.5" />
             <span>Test & Debug</span>
           </button>
         </div>
@@ -331,7 +336,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
             className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-mono text-[11px] font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-2xs"
             title="Export JSON Schema"
           >
-            <FileJson className="h-3.5 w-3.5 text-blue-600" />
+            <FileJson className="h-3.5 w-3.5" />
             <span>Export</span>
           </button>
 
@@ -357,7 +362,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                 className="px-2 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-mono text-[11px] font-semibold flex items-center space-x-1 transition-colors cursor-pointer"
                 title="Add Standard Row"
               >
-                <PlusCircle className="h-3.5 w-3.5 text-emerald-600" />
+                <PlusCircle className="h-3.5 w-3.5 text-slate-500" />
                 <span>+ Row</span>
               </button>
 
@@ -366,16 +371,16 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                 className="px-2 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-mono text-[11px] font-semibold flex items-center space-x-1 transition-colors cursor-pointer"
                 title="Add Sub-Workflow Row"
               >
-                <Layers className="h-3.5 w-3.5 text-purple-600" />
+                <Layers className="h-3.5 w-3.5 text-slate-500" />
                 <span>+ Sub-WF</span>
               </button>
 
               <button
                 onClick={onAddColumn}
-                className="px-2 py-0.5 rounded bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-mono text-[11px] font-bold flex items-center space-x-1 transition-colors cursor-pointer"
+                className="px-2 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-mono text-[11px] font-semibold flex items-center space-x-1 transition-colors cursor-pointer"
                 title="Add Step Column"
               >
-                <Plus className="h-3.5 w-3.5 text-emerald-700" />
+                <Plus className="h-3.5 w-3.5 text-slate-500" />
                 <span>+ Step</span>
               </button>
             </div>
@@ -386,23 +391,12 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
             <button
               data-workflow-inputs-button="true"
               onClick={() => setIsInputsModalOpen(true)}
-              className="flex items-center space-x-2 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100/80 text-blue-900 border border-blue-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
               title="Manage Workflow Input Parameters"
             >
-              <Database className="h-3.5 w-3.5 text-blue-600" />
-              <span className="font-bold">Inputs ({inputs.length})</span>
-
-              {inputs.length > 0 && (
-                <>
-                  <span className="text-blue-300">|</span>
-                  <span className="text-blue-700 max-w-[240px] truncate font-normal">
-                    {inputs.slice(0, 3).map((i) => `${i.key}:${i.type}`).join(', ')}
-                    {inputs.length > 3 ? ` (+${inputs.length - 3})` : ''}
-                  </span>
-                </>
-              )}
-
-              <Sliders className="h-3 w-3 text-blue-500 ml-0.5" />
+              <Database className="h-3.5 w-3.5 text-slate-500" />
+              <span className="font-semibold">Inputs</span>
+              <span className="text-[10px] text-slate-500 tabular-nums">{inputs.length}</span>
             </button>
 
             <div className="h-4 w-px bg-slate-300 shrink-0" />
@@ -410,21 +404,28 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
             {/* Cluster 3: Workflow Outputs Summary Badge Button (Read-only) */}
             <button
               onClick={() => setIsOutputsModalOpen(true)}
-              className="flex items-center space-x-2 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100/80 text-emerald-900 border border-emerald-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
               title="View Derived Decision Outputs"
             >
-              <ArrowRight className="h-3.5 w-3.5 text-emerald-600" />
-              <span className="font-bold">Outputs ({derivedOutputs.length})</span>
+              <ArrowRight className="h-3.5 w-3.5 text-slate-500" />
+              <span className="font-semibold">Outputs</span>
+              <span className="text-[10px] text-slate-500 tabular-nums">{derivedOutputs.length}</span>
+            </button>
 
-              {derivedOutputs.length > 0 && (
-                <>
-                  <span className="text-emerald-300">|</span>
-                  <span className="text-emerald-700 max-w-[240px] truncate font-normal">
-                    {derivedOutputs.slice(0, 3).map((o) => `${o.key}:${o.type}`).join(', ')}
-                    {derivedOutputs.length > 3 ? ` (+${derivedOutputs.length - 3})` : ''}
-                  </span>
-                </>
-              )}
+            <div className="h-4 w-px bg-slate-300 shrink-0" />
+
+            {/* Cluster 4: Show/Hide Dependency Flows Toggle */}
+            <button
+              onClick={onToggleFlows}
+              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs shrink-0 ${
+                showFlows
+                  ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
+                  : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
+              }`}
+              title={showFlows ? 'Hide dependency flow lines' : 'Show dependency flow lines'}
+            >
+              <GitBranch className={`h-3.5 w-3.5 ${showFlows ? 'text-slate-300' : 'text-slate-400'}`} />
+              <span>Flows</span>
             </button>
 
             <div className="flex-1 min-w-0" />
@@ -438,22 +439,22 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
           /* Test Mode Sub-bar */
           <div className="flex items-center justify-between w-full space-x-3">
             <div className="flex items-center space-x-2 shrink-0">
-              <span className="bg-purple-100 text-purple-900 border border-purple-300 px-2 py-0.5 rounded font-bold text-[10px] flex items-center space-x-1 shrink-0">
-                <FlaskConical className="h-3.5 w-3.5 text-purple-700" />
+              <span className="bg-slate-200 text-slate-700 border border-slate-300 px-2 py-0.5 rounded font-semibold text-[10px] flex items-center space-x-1 shrink-0">
+                <FlaskConical className="h-3.5 w-3.5" />
                 <span>TEST LAB</span>
               </span>
 
               {onToggleInputOverridePanel && (
                 <button
                   onClick={onToggleInputOverridePanel}
-                  className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg font-mono text-[11px] font-bold border transition-all cursor-pointer shadow-2xs ${
+                  className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs ${
                     isInputOverridePanelOpen
-                      ? 'bg-slate-900 text-emerald-400 border-slate-800'
+                      ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
                       : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
                   }`}
                   title="Toggle Input Overrides Side Panel"
                 >
-                  <Sliders className="h-3.5 w-3.5 text-emerald-500" />
+                  <Sliders className={`h-3.5 w-3.5 ${isInputOverridePanelOpen ? 'text-slate-300' : 'text-slate-500'}`} />
                   <span>Input Overrides</span>
                 </button>
               )}
@@ -465,11 +466,12 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
             <button
               data-workflow-inputs-button="true"
               onClick={() => setIsInputsModalOpen(true)}
-              className="flex items-center space-x-2 px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100/80 text-blue-900 border border-blue-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
               title="View Workflow Input Definitions"
             >
-              <Database className="h-3.5 w-3.5 text-blue-600" />
-              <span className="font-bold">Inputs ({inputs.length})</span>
+              <Database className="h-3.5 w-3.5 text-slate-500" />
+              <span className="font-semibold">Inputs</span>
+              <span className="text-[10px] text-slate-500 tabular-nums">{inputs.length}</span>
             </button>
 
             <div className="h-4 w-px bg-slate-300 shrink-0" />
@@ -477,11 +479,28 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
             {/* Cluster 3: Outputs Summary Button */}
             <button
               onClick={() => setIsOutputsModalOpen(true)}
-              className="flex items-center space-x-2 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100/80 text-emerald-900 border border-emerald-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
+              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
               title="View Derived Decision Outputs"
             >
-              <ArrowRight className="h-3.5 w-3.5 text-emerald-600" />
-              <span className="font-bold">Outputs ({derivedOutputs.length})</span>
+              <ArrowRight className="h-3.5 w-3.5 text-slate-500" />
+              <span className="font-semibold">Outputs</span>
+              <span className="text-[10px] text-slate-500 tabular-nums">{derivedOutputs.length}</span>
+            </button>
+
+            <div className="h-4 w-px bg-slate-300 shrink-0" />
+
+            {/* Cluster 4: Show/Hide Dependency Flows Toggle */}
+            <button
+              onClick={onToggleFlows}
+              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs shrink-0 ${
+                showFlows
+                  ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
+                  : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
+              }`}
+              title={showFlows ? 'Hide dependency flow lines' : 'Show dependency flow lines'}
+            >
+              <GitBranch className={`h-3.5 w-3.5 ${showFlows ? 'text-slate-300' : 'text-slate-400'}`} />
+              <span>Flows</span>
             </button>
 
             <div className="flex-1 min-w-0" />
@@ -511,13 +530,13 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
             {/* Modal Header */}
             <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
               <div className="flex items-center space-x-3">
-                <div className="p-2 rounded-xl bg-blue-100 text-blue-700">
+                <div className="p-2 rounded-xl bg-slate-100 text-slate-600">
                   <Database className="h-5 w-5" />
                 </div>
                 <div>
                   <div className="flex items-center space-x-2">
                     <h3 className="font-bold text-slate-900 text-sm">Workflow Input Schema</h3>
-                    <span className="bg-blue-100 text-blue-800 text-[10px] font-bold font-mono px-2 py-0.5 rounded-full border border-blue-200">
+                    <span className="bg-slate-100 text-slate-700 text-[10px] font-bold font-mono px-2 py-0.5 rounded-full border border-slate-200">
                       {inputs.length} Total Parameters
                     </span>
                   </div>
@@ -530,9 +549,9 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setIsPasteJsonMode(!isPasteJsonMode)}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-semibold flex items-center space-x-1.5 transition-all cursor-pointer ${
                     isPasteJsonMode
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                      ? 'bg-slate-800 text-white border-slate-700 shadow-2xs'
                       : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
@@ -556,7 +575,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                 <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
                   <div className="flex items-center justify-between">
                     <div className="text-xs font-bold text-slate-800 font-mono flex items-center space-x-1.5">
-                      <Upload className="h-4 w-4 text-blue-600" />
+                      <Upload className="h-4 w-4 text-slate-500" />
                       <span>Paste JSON Payload to Auto-Extract All Input Parameters</span>
                     </div>
                     <span className="text-[10px] text-slate-500 font-mono">Accepts JSON Objects</span>
@@ -567,7 +586,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                     value={rawJsonText}
                     onChange={(e) => setRawJsonText(e.target.value)}
                     placeholder={`{\n  "creditScore": 720,\n  "age": 28,\n  "applicantEmail": "user@example.com",\n  "income": 85000\n}`}
-                    className="w-full bg-white border border-slate-200 rounded-lg p-3 text-xs font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full bg-white border border-slate-200 rounded-lg p-3 text-xs font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-400"
                   />
 
                   {jsonError && <p className="text-xs font-mono text-red-600 font-bold">{jsonError}</p>}
@@ -582,7 +601,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                     <button
                       onClick={handleImportJsonPayload}
                       disabled={!rawJsonText.trim()}
-                      className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs disabled:opacity-50"
+                      className="px-4 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs disabled:opacity-50"
                     >
                       Parse & Import Parameters
                     </button>
@@ -592,13 +611,13 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                 /* Standard Data Table & Form Mode */
                 <>
                   {/* Quick Add Form */}
-                  <form onSubmit={handleAddInput} className="bg-blue-50/50 p-3 rounded-xl border border-blue-200/70 space-y-2.5">
-                    <div className="text-xs font-bold text-blue-900 flex items-center justify-between">
+                  <form onSubmit={handleAddInput} className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2.5">
+                    <div className="text-xs font-bold text-slate-800 flex items-center justify-between">
                       <div className="flex items-center space-x-1.5">
-                        <Plus className="h-4 w-4 text-blue-600" />
+                        <Plus className="h-4 w-4 text-slate-500" />
                         <span>Add Parameter</span>
                       </div>
-                      <span className="text-[10px] font-mono text-blue-600 font-normal">Fast Single Entry</span>
+                      <span className="text-[10px] font-mono text-slate-500 font-normal">Fast Single Entry</span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
@@ -608,14 +627,14 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                           value={newKey}
                           onChange={(e) => setNewKey(e.target.value)}
                           placeholder="KEY Name (e.g. creditScore)"
-                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
                         />
                       </div>
                       <div>
                         <select
                           value={newType}
                           onChange={(e) => setNewType(e.target.value as InputValueType)}
-                          className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer"
                         >
                           <option value="string">string</option>
                           <option value="number">number</option>
@@ -628,7 +647,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                         <button
                           type="submit"
                           disabled={!newKey.trim()}
-                          className="w-full py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
+                          className="w-full py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
                         >
                           + Add
                         </button>
@@ -645,7 +664,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                         value={modalSearchQuery}
                         onChange={(e) => setModalSearchQuery(e.target.value)}
                         placeholder="Search parameter keys or types..."
-                        className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
                       />
                     </div>
 
@@ -695,7 +714,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                                     type="text"
                                     value={inp.key}
                                     onChange={(e) => handleUpdateItem(inp.id, { key: e.target.value })}
-                                    className="w-full font-bold text-xs text-blue-900 bg-transparent hover:bg-slate-100 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1.5 py-0.5 transition-all"
+                                    className="w-full font-bold text-xs text-slate-900 bg-transparent hover:bg-slate-100 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 rounded px-1.5 py-0.5 transition-all"
                                   />
                                 </td>
 
@@ -704,7 +723,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                                   <select
                                     value={inp.type}
                                     onChange={(e) => handleUpdateItem(inp.id, { type: e.target.value as InputValueType })}
-                                    className="w-full bg-blue-50 text-blue-800 font-semibold border border-blue-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                                    className="w-full bg-slate-50 text-slate-800 font-semibold border border-slate-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-slate-400 cursor-pointer"
                                   >
                                     <option value="string">string</option>
                                     <option value="number">number</option>
@@ -721,7 +740,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                                     value={inp.defaultValue !== undefined ? String(inp.defaultValue) : ''}
                                     onChange={(e) => handleUpdateItem(inp.id, { defaultValue: e.target.value })}
                                     placeholder="None"
-                                    className="w-full text-slate-600 text-xs bg-transparent hover:bg-slate-100 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1.5 py-0.5 transition-all"
+                                    className="w-full text-slate-600 text-xs bg-transparent hover:bg-slate-100 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 rounded px-1.5 py-0.5 transition-all"
                                   />
                                 </td>
 
@@ -769,13 +788,13 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
           <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden font-sans flex flex-col max-h-[85vh]">
             <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
               <div className="flex items-center space-x-2.5">
-                <div className="p-2 rounded-xl bg-emerald-100 text-emerald-700">
+                <div className="p-2 rounded-xl bg-slate-100 text-slate-600">
                   <ArrowRight className="h-5 w-5" />
                 </div>
                 <div>
                   <div className="flex items-center space-x-2">
                     <h3 className="font-bold text-slate-900 text-sm">Derived Decision Outputs (Read-Only)</h3>
-                    <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold font-mono px-2 py-0.5 rounded-full border border-emerald-200">
+                    <span className="bg-slate-100 text-slate-700 text-[10px] font-bold font-mono px-2 py-0.5 rounded-full border border-slate-200">
                       {derivedOutputs.length} Output Fields
                     </span>
                   </div>
@@ -815,9 +834,9 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                         derivedOutputs.map(({ key, type, source }, idx) => (
                           <tr key={key} className="hover:bg-slate-50/80 transition-colors">
                             <td className="py-2 px-3 text-center text-slate-400 text-[11px]">{idx + 1}</td>
-                            <td className="py-2 px-3 font-bold text-xs text-emerald-900">{key}</td>
+                            <td className="py-2 px-3 font-bold text-xs text-slate-900">{key}</td>
                             <td className="py-2 px-3">
-                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-semibold">
                                 {type}
                               </span>
                             </td>

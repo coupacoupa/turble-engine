@@ -6,8 +6,6 @@ import {
   Trash2,
   Move,
   RotateCcw,
-  Maximize2,
-  Minimize2,
   Search,
   ArrowUp,
   ArrowDown,
@@ -89,7 +87,6 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
   });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
 
   const dragRef = useRef<{ startX: number; startY: number; posX: number; posY: number }>({
     startX: 0,
@@ -613,7 +610,7 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
         left: `${position.x}px`,
         top: `${position.y}px`,
         width: `${size.width}px`,
-        height: isMinimized ? 'auto' : `${size.height}px`,
+        height: `${size.height}px`,
       }}
       className={`fixed z-50 bg-white border border-slate-300 rounded-xl shadow-2xl flex flex-col font-sans text-slate-900 transition-shadow duration-150 ${
         isDragging ? 'shadow-emerald-900/20 ring-2 ring-emerald-500/30' : ''
@@ -625,24 +622,16 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
         className="px-3.5 py-2 bg-slate-100/95 border-b border-slate-200 text-slate-800 rounded-t-xl flex items-center justify-between font-mono cursor-grab active:cursor-grabbing select-none"
       >
         <div className="flex items-center space-x-2 min-w-0">
-          <Move className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+          <Move className="h-3.5 w-3.5 text-slate-400 shrink-0" />
           <div className="truncate flex items-center space-x-2">
             <h3 className="font-bold text-xs text-slate-900 truncate">Configure Cell Coordinate</h3>
-            <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.2 rounded font-mono font-semibold truncate">
+            <span className="text-[10px] bg-slate-100 text-slate-700 border border-slate-200 px-1.5 py-0.2 rounded font-mono font-semibold truncate">
               {row.label} × {column.label}
             </span>
           </div>
         </div>
 
         <div className="flex items-center space-x-1 shrink-0 ml-2">
-          <button
-            type="button"
-            onClick={() => setIsMinimized((prev) => !prev)}
-            title={isMinimized ? 'Expand Window' : 'Minimize Window'}
-            className="p-1 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-200/80 transition-colors cursor-pointer"
-          >
-            {isMinimized ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
-          </button>
           <button
             type="button"
             onClick={onClose}
@@ -655,14 +644,13 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
       </div>
 
       {/* Main Content Body */}
-      {!isMinimized && (
-        <>
+      <>
           <div className="p-4 overflow-y-auto flex-1 space-y-4 text-xs bg-slate-50/50">
             {/* 1. Cell Actions Header & Dropdown Selector */}
             <div className="bg-white p-3.5 border border-slate-200 rounded-xl shadow-2xs space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2 font-bold text-slate-800 text-xs">
-                  <Layers className="h-4 w-4 text-emerald-600" />
+                  <Layers className="h-4 w-4 text-slate-500" />
                   <span>Cell Action Sequence ({actions.length})</span>
                 </div>
 
@@ -768,9 +756,9 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
                           <tr
                             key={act.id}
                             onClick={() => setActiveActionId(act.id)}
-                            className={`cursor-pointer transition-colors ${
+                            className={`cursor-pointer transition-colors relative ${
                               isSelected
-                                ? 'bg-emerald-50/80 text-slate-900 font-medium'
+                                ? 'bg-emerald-50/90 text-slate-900 font-medium border-l-2 border-l-emerald-600 shadow-2xs'
                                 : 'hover:bg-slate-50/80 text-slate-700'
                             }`}
                           >
@@ -779,8 +767,8 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
                               <span
                                 className={`px-2 py-0.5 rounded border text-[10px] font-bold ${
                                   act.type === 'table_rule'
-                                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                                    : 'bg-purple-100 text-purple-900 border-purple-300'
+                                    ? 'bg-slate-100 text-slate-800 border-slate-200'
+                                    : 'bg-slate-100 text-slate-800 border-slate-200'
                                 }`}
                               >
                                 {act.type === 'table_rule' ? 'Decision Table' : act.type}
@@ -892,7 +880,7 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
                         const inputEl = document.getElementById(`input-tag-search-${activeAction.id}`);
                         inputEl?.focus();
                       }}
-                      className="flex flex-wrap gap-1.5 p-2 bg-white border border-slate-300 rounded-lg min-h-[42px] items-center focus-within:ring-1 focus-within:ring-emerald-500 focus-within:border-emerald-600 transition-all cursor-text shadow-2xs"
+                      className="flex flex-wrap gap-1.5 p-2 bg-white border border-slate-300 rounded-lg min-h-[42px] items-center focus-within:ring-1 focus-within:ring-slate-400 focus-within:border-slate-400 transition-all cursor-text shadow-2xs"
                     >
                       {/* Active Input Tag Chips */}
                       {inputKeys.map((key) => {
@@ -908,7 +896,7 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
                             title={isResolved ? 'Resolved input source' : 'Unresolved input: missing from workflow inputs and preceding cell outputs'}
                             className={`px-2 py-1 rounded font-mono text-[11px] flex items-center space-x-1 shadow-2xs font-bold transition-colors cursor-pointer ${
                               isResolved
-                                ? 'bg-emerald-100 text-emerald-900 border border-emerald-300 hover:bg-emerald-200'
+                                ? 'bg-slate-100 text-slate-800 border border-slate-200 hover:bg-slate-200'
                                 : 'bg-rose-100 text-rose-950 border border-rose-300 hover:bg-rose-200'
                             }`}
                           >
@@ -921,7 +909,7 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
                                 handleRemoveInputTag(key);
                               }}
                               className={`p-0.5 rounded cursor-pointer ${
-                                isResolved ? 'text-emerald-700 hover:text-emerald-950' : 'text-rose-700 hover:text-rose-950'
+                                isResolved ? 'text-slate-500 hover:text-slate-800' : 'text-rose-700 hover:text-rose-950'
                               }`}
                             >
                               <X className="h-3 w-3" />
@@ -1007,7 +995,7 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
                       const outputEl = document.getElementById(`output-tag-text-${activeAction.id}`);
                       outputEl?.focus();
                     }}
-                    className="flex flex-wrap gap-1.5 p-2 bg-white border border-slate-300 rounded-lg min-h-[42px] items-center focus-within:ring-1 focus-within:ring-purple-500 focus-within:border-purple-600 transition-all cursor-text shadow-2xs"
+                    className="flex flex-wrap gap-1.5 p-2 bg-white border border-slate-300 rounded-lg min-h-[42px] items-center focus-within:ring-1 focus-within:ring-slate-400 focus-within:border-slate-400 transition-all cursor-text shadow-2xs"
                   >
                     {/* Active Output Tag Chips */}
                     {outputKeys.map((key) => {
@@ -1022,7 +1010,7 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
                           className={`px-2 py-1 rounded font-mono text-[11px] flex items-center space-x-1 shadow-2xs font-bold transition-colors cursor-pointer ${
                             clashInfo.clashing
                               ? 'bg-rose-100 text-rose-950 border border-rose-300 hover:bg-rose-200'
-                              : 'bg-purple-100 text-purple-950 border border-purple-300'
+                              : 'bg-slate-100 text-slate-800 border border-slate-200'
                           }`}
                         >
                           {clashInfo.clashing && <AlertTriangle className="h-3 w-3 text-rose-600 shrink-0" />}
@@ -1034,7 +1022,7 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
                               handleRemoveOutputTag(key);
                             }}
                             className={`p-0.5 rounded cursor-pointer ${
-                              clashInfo.clashing ? 'text-rose-700 hover:text-rose-950' : 'text-purple-700 hover:text-purple-950'
+                              clashInfo.clashing ? 'text-rose-700 hover:text-rose-950' : 'text-slate-500 hover:text-slate-800'
                             }`}
                           >
                             <X className="h-3 w-3" />
@@ -1067,14 +1055,14 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
                 <div className="space-y-3 pt-2 border-t border-slate-200">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      <Sparkles className="h-4 w-4 text-emerald-600" />
+                      <Sparkles className="h-4 w-4 text-slate-500" />
                       <span className="font-bold text-slate-900 text-xs">Decision Table Rules Matrix</span>
                     </div>
 
                     <button
                       type="button"
                       onClick={handleAddDecisionTableRow}
-                      className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 font-mono text-[11px] flex items-center space-x-1 font-bold cursor-pointer transition-colors"
+                      className="px-2.5 py-1 rounded-lg bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 font-mono text-[11px] flex items-center space-x-1 font-semibold cursor-pointer transition-colors"
                     >
                       <Plus className="h-3 w-3" />
                       <span>Add Rule Row</span>
@@ -1094,20 +1082,20 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
 
                             {/* Input Condition Columns */}
                             {inputKeys.map((inpKey) => (
-                              <th key={`head_in_${inpKey}`} className="p-2 border-r border-slate-200 bg-emerald-50 text-emerald-900 text-left">
+                              <th key={`head_in_${inpKey}`} className="p-2 border-r border-slate-200 bg-slate-50 text-slate-800 text-left">
                                 <div className="flex items-center justify-between">
                                   <span className="font-bold">{inpKey}</span>
-                                  <span className="text-[9px] bg-emerald-200 text-emerald-950 px-1 rounded">IF</span>
+                                  <span className="text-[9px] bg-slate-200 text-slate-700 px-1 rounded">IF</span>
                                 </div>
                               </th>
                             ))}
 
                             {/* Output Mutation Columns */}
                             {outputKeys.map((outKey) => (
-                              <th key={`head_out_${outKey}`} className="p-2 border-r border-slate-200 bg-purple-50 text-purple-950 text-left">
+                              <th key={`head_out_${outKey}`} className="p-2 border-r border-slate-200 bg-slate-50 text-slate-800 text-left">
                                 <div className="flex items-center justify-between">
                                   <span className="font-bold">{outKey}</span>
-                                  <span className="text-[9px] bg-purple-200 text-purple-950 px-1 rounded">SET</span>
+                                  <span className="text-[9px] bg-slate-200 text-slate-700 px-1 rounded">SET</span>
                                 </div>
                               </th>
                             ))}
@@ -1133,26 +1121,26 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
 
                                 {/* Condition Cells */}
                                 {inputKeys.map((inpKey) => (
-                                  <td key={`cell_in_${rIdx}_${inpKey}`} className="p-1.5 border-r border-slate-200 bg-emerald-50/20">
+                                  <td key={`cell_in_${rIdx}_${inpKey}`} className="p-1.5 border-r border-slate-200">
                                     <input
                                       type="text"
                                       value={rule.conditions[inpKey] ?? ''}
                                       onChange={(e) => handleCellConditionChange(rIdx, inpKey, e.target.value)}
                                       placeholder="e.g. >= 700"
-                                      className="w-full p-1 bg-white border border-slate-300 rounded text-slate-900 text-[11px] focus:outline-none focus:border-emerald-600"
+                                      className="w-full p-1 bg-white border border-slate-300 rounded text-slate-900 text-[11px] focus:outline-none focus:border-slate-500"
                                     />
                                   </td>
                                 ))}
 
                                 {/* Mutation Cells */}
                                 {outputKeys.map((outKey) => (
-                                  <td key={`cell_out_${rIdx}_${outKey}`} className="p-1.5 border-r border-slate-200 bg-purple-50/20">
+                                  <td key={`cell_out_${rIdx}_${outKey}`} className="p-1.5 border-r border-slate-200">
                                     <input
                                       type="text"
                                       value={rule.mutations[outKey] ?? ''}
                                       onChange={(e) => handleCellMutationChange(rIdx, outKey, e.target.value)}
                                       placeholder="e.g. APPROVED"
-                                      className="w-full p-1 bg-white border border-slate-300 rounded text-slate-900 text-[11px] focus:outline-none focus:border-purple-600"
+                                      className="w-full p-1 bg-white border border-slate-300 rounded text-slate-900 text-[11px] focus:outline-none focus:border-slate-500"
                                     />
                                   </td>
                                 ))}
@@ -1239,31 +1227,7 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
       </div>
 
           {/* Footer Bar */}
-          <div className="px-5 py-3 bg-slate-100 border-t border-slate-200 rounded-b-xl flex items-center justify-between shrink-0 relative">
-            <div className="flex items-center space-x-4">
-              <label className="flex items-center space-x-2 text-xs text-slate-700 font-medium cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={cellEnabled}
-                  onChange={(e) => setCellEnabled(e.target.checked)}
-                  className="rounded border-slate-300 bg-white text-emerald-600 accent-emerald-600"
-                />
-                <span>Cell Enabled</span>
-              </label>
-
-              {actions.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleClearAllCellActions}
-                  className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold font-mono flex items-center space-x-1.5 cursor-pointer transition-colors"
-                  title="Clear all actions from this cell"
-                >
-                  <Trash2 className="h-3.5 w-3.5 text-rose-600" />
-                  <span>Delete Cell Actions</span>
-                </button>
-              )}
-            </div>
-
+          <div className="px-5 py-3 bg-slate-100 border-t border-slate-200 rounded-b-xl flex items-center justify-end shrink-0 relative">
             <button
               type="button"
               onClick={handleSave}
@@ -1285,7 +1249,6 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
             </div>
           </div>
         </>
-      )}
     </div>
   );
 };
