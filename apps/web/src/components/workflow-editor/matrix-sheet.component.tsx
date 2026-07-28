@@ -450,19 +450,19 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                     style={{ width: w, minWidth: MIN_COL_WIDTH }}
                     className={`sticky top-0 z-20 border-r border-b border-slate-200 p-2.5 transition-all relative group ${
                       isDraggingThisCol
-                        ? 'opacity-30 border-2 border-dashed border-emerald-500 bg-emerald-50'
+                        ? 'opacity-30 border-2 border-dashed border-slate-400 bg-slate-100'
                         : isDragOverThisCol
-                        ? 'border-l-4 border-l-emerald-500 bg-emerald-100/90'
+                        ? 'border-l-4 border-l-slate-700 bg-slate-200'
                         : isActiveStep
-                        ? 'bg-emerald-100 text-emerald-900 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-emerald-600'
+                        ? 'bg-slate-200 text-slate-900 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-slate-800'
                         : isColSelected
-                        ? 'bg-emerald-50 text-emerald-900'
+                        ? 'bg-slate-200/90 text-slate-900'
                         : 'bg-slate-100 hover:bg-slate-200/80 text-slate-800'
                     }`}
                   >
                     {/* Selected Column Header Node Outline */}
                     {isColSelected && (
-                      <div className="absolute inset-0 pointer-events-none z-30 border border-emerald-600/90 rounded-xs shadow-[0_0_0_1px_rgba(16,185,129,0.15)]" />
+                      <div className="absolute inset-0 pointer-events-none z-30 border border-slate-400 rounded-xs shadow-[0_0_0_1px_rgba(15,23,42,0.1)]" />
                     )}
 
                     {/* Excel Column Header Letter & Step Label */}
@@ -557,19 +557,19 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                     style={{ width: rowHeaderWidth, height: h }}
                     className={`sticky left-0 z-20 p-2.5 border-r border-b border-slate-200 relative group transition-all ${
                       isDraggingThisRow
-                        ? 'opacity-30 border-2 border-dashed border-emerald-500 bg-emerald-50'
+                        ? 'opacity-30 border-2 border-dashed border-slate-400 bg-slate-100'
                         : isDragOverThisRow
-                        ? 'border-t-4 border-t-emerald-500 bg-emerald-100/90'
+                        ? 'border-t-4 border-t-slate-700 bg-slate-200'
                         : row.isInterceptor
                         ? 'bg-amber-100/80 text-amber-950'
                         : isRowSelected
-                        ? 'bg-emerald-100/70 text-emerald-950'
+                        ? 'bg-slate-200/90 text-slate-950 font-bold'
                         : 'bg-slate-50 text-slate-800'
                     }`}
                   >
                     {/* Selected Row Header Node Outline */}
                     {isRowSelected && (
-                      <div className="absolute inset-0 pointer-events-none z-30 border border-emerald-600/90 rounded-xs shadow-[0_0_0_1px_rgba(16,185,129,0.15)]" />
+                      <div className="absolute inset-0 pointer-events-none z-30 border border-slate-400 rounded-xs shadow-[0_0_0_1px_rgba(15,23,42,0.1)]" />
                     )}
 
                     <div className="flex items-center justify-between space-x-2">
@@ -712,31 +712,31 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                         className={`border-r border-b border-slate-200 cursor-pointer transition-all relative group/cell ${
                           isSelectedCell
                             ? hasIssues
-                              ? 'bg-rose-50/70 z-10'
-                              : 'bg-emerald-50/40 z-10'
+                              ? 'bg-rose-50/40 z-10'
+                              : 'bg-slate-100/60 z-10'
                             : execState?.mutatedPayload && Object.keys(execState.mutatedPayload).length > 0
-                            ? 'bg-emerald-50/40 hover:bg-emerald-100/60 border-emerald-300'
+                            ? 'bg-emerald-50/30 hover:bg-emerald-100/50 border-emerald-200'
                             : hasIssues
-                            ? 'bg-rose-50/50 hover:bg-rose-100/70 border-rose-200'
+                            ? 'bg-rose-50/30 hover:bg-rose-100/50 border-rose-200'
                             : isActiveStep
-                            ? 'bg-emerald-50/30 hover:bg-emerald-50/60'
+                            ? 'bg-slate-100/40 hover:bg-slate-100/70'
                             : 'bg-white hover:bg-slate-50/80'
                         }`}
                       >
                         {/* Selected Cell Node Outline Overlay */}
                         {isSelectedCell && (
                           <div
-                            className={`absolute inset-0 pointer-events-none z-20 border rounded-xs transition-all ${
+                            className={`absolute inset-0 pointer-events-none z-20 border-2 rounded-xs transition-all ${
                               hasIssues
-                                ? 'border-rose-600 shadow-[0_0_0_1px_rgba(225,29,72,0.2)]'
-                                : 'border-emerald-600 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]'
+                                ? 'border-rose-600 shadow-[0_0_0_1px_rgba(225,29,72,0.15)]'
+                                : 'border-slate-800 shadow-[0_0_0_1px_rgba(15,23,42,0.15)]'
                             }`}
                           />
                         )}
 
                         {/* Active Cell Excel Fill Handle Corner Dot */}
                         {isSelectedCell && (
-                          <div className={`absolute bottom-[-3px] right-[-3px] w-2 h-2 border border-white z-20 rounded-xs ${hasIssues ? 'bg-rose-600' : 'bg-emerald-600'}`} />
+                          <div className={`absolute bottom-[-3px] right-[-3px] w-2 h-2 border border-white z-20 rounded-xs ${hasIssues ? 'bg-rose-600' : 'bg-slate-800'}`} />
                         )}
 
                         {/* Copied Cell Excel Marquee Pulse Outline */}

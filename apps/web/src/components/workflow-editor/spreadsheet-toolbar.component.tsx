@@ -271,9 +271,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
           </button>
 
           <div onClick={onBackToDashboard} className="flex items-center space-x-2 cursor-pointer group shrink-0">
-            <div className="h-7 w-7 rounded-lg bg-emerald-600 flex items-center justify-center text-white shadow-2xs group-hover:bg-emerald-700 transition-colors">
-              <Layers className="h-4 w-4 stroke-white" />
-            </div>
+            <img src="/logo.png" alt="Turble Logo" className="h-7 w-auto object-contain shrink-0 group-hover:scale-105 transition-transform" />
             <span className="font-bold text-slate-900 tracking-tight text-sm hidden sm:inline">Turble</span>
           </div>
 
