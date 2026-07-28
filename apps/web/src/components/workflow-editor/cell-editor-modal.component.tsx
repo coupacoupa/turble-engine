@@ -25,6 +25,7 @@ import {
   TableRuleMatch,
 } from '@/types/matrix.types';
 import { WorkflowValidationService } from '@/services/workflow-validation.service';
+import { getCellActions } from '@/utils/cell-actions.util';
 import { DraggableModal } from '@/components/common/draggable-modal.component';
 
 interface CellEditorModalProps {
@@ -88,7 +89,8 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
 
     let initialActions: CellActionItem[] = [];
 
-    if (cell?.actions && cell.actions.length > 0) {
+    if (cell?.actions) {
+      // Modern shape — authoritative even when empty (an emptied cell stays empty)
       initialActions = cell.actions.map((act, idx) => ({
         ...act,
         order: idx,
@@ -183,7 +185,7 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
 
       const cellLabel = `${targetCol?.label || otherCell.colId} × ${targetRow?.label || otherCell.rowId}`;
 
-      const cellActions = otherCell.actions || (otherCell.action ? [{ type: otherCell.action, outputs: [] }] : []);
+      const cellActions = getCellActions(otherCell);
       cellActions.forEach((act) => {
         (act.outputs || []).forEach((outKey) => {
           if (outKey && !keysSeen.has(outKey)) {
@@ -490,11 +492,12 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
       return act;
     });
 
+    // With no actions left, the cell is saved as a passthrough so it renders (and validates) as empty
     const updatedCell: CellSchema = {
       id: cell?.id ?? `cell_${row.id}_${column.id}`,
       rowId: row.id,
       colId: column.id,
-      action: updatedActions[0]?.type ?? (isStandardRow ? 'table_rule' : 'trigger_sub_workflow'),
+      action: updatedActions[0]?.type ?? 'passthrough',
       actions: updatedActions,
       enabled: cellEnabled,
       tableRuleConfig: updatedActions[0]?.tableRuleConfig,
@@ -661,14 +664,14 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
                                 {act.type === 'table_rule' ? 'Decision Table' : act.type}
                               </span>
                             </td>
-                            <td className="py-2 px-3 truncate max-w-[130px]">
+                            <td className="py-2 px-3 truncate max-w-32.5">
                               {act.inputs && act.inputs.length > 0 ? (
                                 <span className="text-emerald-700 font-bold">{act.inputs.join(', ')}</span>
                               ) : (
                                 <span className="text-slate-400 italic">None</span>
                               )}
                             </td>
-                            <td className="py-2 px-3 truncate max-w-[130px]">
+                            <td className="py-2 px-3 truncate max-w-32.5">
                               {act.outputs && act.outputs.length > 0 ? (
                                 <span className="text-purple-700 font-bold">{act.outputs.join(', ')}</span>
                               ) : (
@@ -767,7 +770,7 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
                         const inputEl = document.getElementById(`input-tag-search-${activeAction.id}`);
                         inputEl?.focus();
                       }}
-                      className="flex flex-wrap gap-1.5 p-2 bg-white border border-slate-300 rounded-lg min-h-[42px] items-center focus-within:ring-1 focus-within:ring-slate-400 focus-within:border-slate-400 transition-all cursor-text shadow-2xs"
+                      className="flex flex-wrap gap-1.5 p-2 bg-white border border-slate-300 rounded-lg min-h-10.5 items-center focus-within:ring-1 focus-within:ring-slate-400 focus-within:border-slate-400 transition-all cursor-text shadow-2xs"
                     >
                       {/* Active Input Tag Chips */}
                       {inputKeys.map((key) => {
@@ -824,7 +827,7 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
                           }
                         }}
                         placeholder={inputKeys.length === 0 ? 'Search inputs or type & press Enter...' : 'Search or type & press Enter...'}
-                        className="flex-1 min-w-[180px] bg-transparent font-mono text-xs text-slate-900 focus:outline-none placeholder-slate-400 py-0.5"
+                        className="flex-1 min-w-45 bg-transparent font-mono text-xs text-slate-900 focus:outline-none placeholder-slate-400 py-0.5"
                       />
                     </div>
 
@@ -882,7 +885,7 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
                       const outputEl = document.getElementById(`output-tag-text-${activeAction.id}`);
                       outputEl?.focus();
                     }}
-                    className="flex flex-wrap gap-1.5 p-2 bg-white border border-slate-300 rounded-lg min-h-[42px] items-center focus-within:ring-1 focus-within:ring-slate-400 focus-within:border-slate-400 transition-all cursor-text shadow-2xs"
+                    className="flex flex-wrap gap-1.5 p-2 bg-white border border-slate-300 rounded-lg min-h-10.5 items-center focus-within:ring-1 focus-within:ring-slate-400 focus-within:border-slate-400 transition-all cursor-text shadow-2xs"
                   >
                     {/* Active Output Tag Chips */}
                     {outputKeys.map((key) => {
@@ -933,7 +936,7 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
                         }
                       }}
                       placeholder={outputKeys.length === 0 ? 'Type output variable name & press Enter...' : 'Type output name & press Enter...'}
-                      className="flex-1 min-w-[200px] bg-transparent font-mono text-xs text-slate-900 focus:outline-none placeholder-slate-400 py-0.5"
+                      className="flex-1 min-w-50 bg-transparent font-mono text-xs text-slate-900 focus:outline-none placeholder-slate-400 py-0.5"
                     />
                   </div>
                 </div>

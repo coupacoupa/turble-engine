@@ -249,7 +249,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
   };
 
   return (
-    <div className="bg-white border-b border-slate-200 font-sans text-xs shrink-0 select-none w-full relative z-30 shadow-xs">
+    <div className="bg-white border-b border-slate-200 font-sans text-xs shrink-0 select-none w-full relative z-sticky shadow-xs">
       {/* 1. Flush Edge-to-Edge Header Bar */}
       <div className="px-4 py-2 flex items-center justify-between border-b border-slate-100 flex-wrap gap-2">
         {/* Left: Back button, Logo, and Inline Editable Title/Description */}
@@ -403,7 +403,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
 
       {/* 1. High-Density Enterprise Input Schema Setup Modal */}
       {isInputsModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-modal bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden font-sans flex flex-col max-h-[85vh]">
             {/* Modal Header */}
             <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
@@ -662,7 +662,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
 
       {/* 2. Workflow Decision Outputs Inspector Modal (Read-only) */}
       {isOutputsModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-modal bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden font-sans flex flex-col max-h-[85vh]">
             <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
               <div className="flex items-center space-x-2.5">

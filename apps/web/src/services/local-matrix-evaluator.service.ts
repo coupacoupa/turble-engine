@@ -10,6 +10,7 @@ import {
   ReplayEventLog,
 } from '@/types/matrix.types';
 import { MatrixExecutionResult } from '@/services/matrix-evaluator.service';
+import { getCellActions } from '@/utils/cell-actions.util';
 
 /** Evaluate a single condition expression string against a runtime value */
 function evaluateCondition(runtimeValue: any, conditionStr: string): boolean {
@@ -101,20 +102,7 @@ export class LocalMatrixEvaluatorService {
         const cellMutations: Record<string, any> = {};
 
         // Cell Actions Sequence
-        const actionsList: CellActionItem[] =
-          cell.actions && cell.actions.length > 0
-            ? cell.actions
-            : cell.action && cell.action !== 'passthrough'
-            ? [
-                {
-                  id: `act_${cellKey}`,
-                  order: 0,
-                  type: cell.action,
-                  enabled: true,
-                  tableRuleConfig: cell.tableRuleConfig,
-                },
-              ]
-            : [];
+        const actionsList: CellActionItem[] = getCellActions(cell);
 
         for (const act of actionsList) {
           if (!act.enabled) continue;

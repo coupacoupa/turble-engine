@@ -3,11 +3,12 @@ import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType, CellSchema, S
 import { MatrixEvaluatorConnectService, type MatrixExecutionResult } from '@/services/matrix-evaluator.service';
 import { WorkflowStorageService } from '@/services/workflow-storage.service';
 import { SpreadsheetToolbar } from '@/components/workflow-editor/spreadsheet-toolbar.component';
-import { MatrixSheet, CellExecutionState, getExcelColumnLetter } from '@/components/workflow-editor/matrix-sheet.component';
+import { MatrixSheet, CellExecutionState } from '@/components/workflow-editor/matrix-sheet.component';
 import { CellEditorModal } from '@/components/workflow-editor/cell-editor-modal.component';
 import { ActiveDependency } from '@/components/workflow-editor/dependency-connector-overlay.component';
 import { ValidationModal } from '@/components/workflow-editor/validation-modal.component';
 import { WorkflowValidationService } from '@/services/workflow-validation.service';
+import { getCellActions } from '@/utils/cell-actions.util';
 
 import { ExecutionInspectorBottomPanel } from '@/components/workflow-editor/execution-inspector-bottom-panel.component';
 
@@ -91,20 +92,6 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
 
 
 
-  // Helper to format cell coordinates as Excel label (e.g. A1, B2)
-  const getCellLabelName = useCallback(
-    (row: DomainRowSchema, col: StepColumnSchema) => {
-      if (!matrix) return `${col.label} ${row.label}`;
-      const sortedCols = [...matrix.columns].sort((a, b) => a.order - b.order);
-      const sortedRows = [...matrix.rows].sort((a, b) => a.order - b.order);
-      const cIdx = sortedCols.findIndex((c) => c.id === col.id);
-      const rIdx = sortedRows.findIndex((r) => r.id === row.id);
-      if (cIdx === -1 || rIdx === -1) return `${col.label} ${row.label}`;
-      return `${getExcelColumnLetter(cIdx)}${rIdx + 1}`;
-    },
-    [matrix]
-  );
-
   // Copy Cell Handler (Ctrl+C / Cmd+C)
   const handleCopyCell = useCallback(() => {
     if (!selectedRow || !selectedCol || !matrix) return;
@@ -117,7 +104,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
     setCopiedCellKey(cellKey);
     try {
       navigator.clipboard.writeText(JSON.stringify(cell, null, 2));
-    } catch (e) {}
+    } catch {}
   }, [selectedRow, selectedCol, matrix]);
 
   // Cut Cell Handler (Ctrl+X / Cmd+X)
@@ -129,10 +116,9 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
 
     setCopiedCell(cell);
     setCopiedCellKey(cellKey);
-    const label = getCellLabelName(selectedRow, selectedCol);
     try {
       navigator.clipboard.writeText(JSON.stringify(cell, null, 2));
-    } catch (e) {}
+    } catch {}
 
     setMatrix((prev) => {
       if (!prev) return prev;
@@ -148,7 +134,6 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
   const handlePasteCell = useCallback(async () => {
     if (!selectedRow || !selectedCol || !matrix) return;
     const targetCellKey = `${selectedRow.id}:${selectedCol.id}`;
-    const label = getCellLabelName(selectedRow, selectedCol);
 
     let sourceCellToPaste: CellSchema | null = copiedCell;
 
@@ -160,7 +145,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
           sourceCellToPaste = parsed;
         }
       }
-    } catch (e) {}
+    } catch {}
 
     if (!sourceCellToPaste) {
       return;
@@ -266,11 +251,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
       const colOrderMap = new Map(matrix.columns.map((c) => [c.id, c.order]));
       const rowOrderMap = new Map(matrix.rows.map((r) => [r.id, r.order]));
 
-      const actionsList = cell?.actions && cell.actions.length > 0
-        ? cell.actions
-        : cell?.action && cell.action !== 'passthrough'
-        ? [{ type: cell.action, inputs: [], outputs: [], tableRuleConfig: cell.tableRuleConfig }]
-        : [];
+      const actionsList = getCellActions(cell);
 
       const consumedInputs = Array.from(new Set(actionsList.flatMap((a) => a.inputs || [])));
       const producedOutputs = Array.from(new Set(actionsList.flatMap((a) => a.outputs || [])));
@@ -287,7 +268,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
           const isPreceding = cOrder < col.order || (cOrder === col.order && rOrder < row.order);
           if (!isPreceding) return;
 
-          const otherActions = otherCell.actions || (otherCell.action ? [{ type: otherCell.action, outputs: [] }] : []);
+          const otherActions = getCellActions(otherCell);
           otherActions.forEach((act) => {
             if ((act.outputs || []).includes(inpKey)) {
               producerKey = `${otherCell.rowId}:${otherCell.colId}`;
@@ -340,7 +321,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
           const isSucceeding = cOrder > col.order || (cOrder === col.order && rOrder > row.order);
           if (!isSucceeding) return;
 
-          const otherActions = otherCell.actions || (otherCell.action ? [{ type: otherCell.action, inputs: [], outputs: [] }] : []);
+          const otherActions = getCellActions(otherCell);
 
           // Check if succeeding cell also OUTPUTS this variable → clash
           const alsoProducesOutput = otherActions.some((act) => (act.outputs || []).includes(outKey));
@@ -532,7 +513,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
 
       if (!isPreceding) return;
 
-      const actions = c.actions || (c.action ? [{ type: c.action, outputs: [] }] : []);
+      const actions = getCellActions(c);
       actions.forEach((act) => {
         if ((act.outputs || []).includes(inputKey)) {
           foundProducerKey = `${c.rowId}:${c.colId}`;
@@ -565,18 +546,24 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
     setActiveDependency(null);
   };
 
-  // Cell Save Handler
+  // Cell Save Handler — an emptied cell is removed from the matrix so it returns to a true empty state
   const handleSaveCell = (updatedCell: CellSchema) => {
+    const cellKey = `${updatedCell.rowId}:${updatedCell.colId}`;
+    const isEmpty =
+      (!updatedCell.actions || updatedCell.actions.length === 0) &&
+      (!updatedCell.action || updatedCell.action === 'passthrough');
+
     setMatrix((prev) => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        cells: {
-          ...prev.cells,
-          [`${updatedCell.rowId}:${updatedCell.colId}`]: updatedCell,
-        },
-      };
+      const cells = { ...prev.cells };
+      if (isEmpty) {
+        delete cells[cellKey];
+      } else {
+        cells[cellKey] = updatedCell;
+      }
+      return { ...prev, cells };
     });
+    setSelectedCell(isEmpty ? undefined : updatedCell);
   };
 
   // Add Column Handler
@@ -778,11 +765,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
       // If hovering over a step, focus dependency lines on the hovered step cell
       if (hoveredCellKey && currentCellKey !== hoveredCellKey) return;
 
-      const actionsList = cell.actions && cell.actions.length > 0
-        ? cell.actions
-        : cell.action && cell.action !== 'passthrough'
-        ? [{ type: cell.action, inputs: [], outputs: [] }]
-        : [];
+      const actionsList = getCellActions(cell);
 
       const consumedInputs = Array.from(new Set(actionsList.flatMap((a) => a.inputs || [])));
 
@@ -802,7 +785,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
           const isPreceding = otherCOrder < cOrder || (otherCOrder === cOrder && otherROrder < rOrder);
           if (!isPreceding) return;
 
-          const otherActions = otherCell.actions || (otherCell.action ? [{ type: otherCell.action, outputs: [] }] : []);
+          const otherActions = getCellActions(otherCell);
           otherActions.forEach((act) => {
             if ((act.outputs || []).includes(inpKey)) {
               producerKey = `${otherCell.rowId}:${otherCell.colId}`;

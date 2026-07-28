@@ -1,4 +1,5 @@
 import { MatrixSchema } from '@/types/matrix.types';
+import { getCellActions } from '@/utils/cell-actions.util';
 
 export class WorkflowValidationService {
   /**
@@ -36,11 +37,7 @@ export class WorkflowValidationService {
     // 2. Check preceding actions in the same cell
     const currentCell = matrix.cells[`${targetRowId}:${targetColId}`];
     if (currentCell) {
-      const actions = currentCell.actions && currentCell.actions.length > 0
-        ? currentCell.actions
-        : currentCell.action && currentCell.action !== 'passthrough'
-        ? [{ type: currentCell.action, outputs: [] }]
-        : [];
+      const actions = getCellActions(currentCell);
 
       const limit = Number.isFinite(actionIndex) ? Math.min(actionIndex, actions.length) : 0;
       for (let i = 0; i < limit; i++) {
@@ -62,13 +59,7 @@ export class WorkflowValidationService {
       const isPreceding = cOrder < currColOrder || (cOrder === currColOrder && rOrder < currRowOrder);
       if (!isPreceding) return;
 
-      const cellActions = otherCell.actions && otherCell.actions.length > 0
-        ? otherCell.actions
-        : otherCell.action && otherCell.action !== 'passthrough'
-        ? [{ type: otherCell.action, outputs: [] }]
-        : [];
-
-      cellActions.forEach((act) => {
+      getCellActions(otherCell).forEach((act) => {
         if ((act.outputs || []).includes(inputKey)) {
           resolved = true;
         }
@@ -89,12 +80,7 @@ export class WorkflowValidationService {
     const cell = matrix.cells[`${rowId}:${colId}`];
     if (!cell) return [];
 
-    const actions = cell.actions && cell.actions.length > 0
-      ? cell.actions
-      : cell.action && cell.action !== 'passthrough'
-      ? [{ type: cell.action, inputs: [], outputs: [] }]
-      : [];
-
+    const actions = getCellActions(cell);
     const allInputs = Array.from(new Set(actions.flatMap((a) => a.inputs || [])));
     return allInputs.filter((inpKey) => !this.isInputResolved(inpKey, matrix, rowId, colId));
   }
@@ -113,12 +99,7 @@ export class WorkflowValidationService {
     const targetCell = matrix.cells[`${targetRowId}:${targetColId}`];
     if (!targetCell) return [];
 
-    const targetActions = targetCell.actions && targetCell.actions.length > 0
-      ? targetCell.actions
-      : targetCell.action && targetCell.action !== 'passthrough'
-      ? [{ type: targetCell.action, outputs: [] }]
-      : [];
-
+    const targetActions = getCellActions(targetCell);
     const producesOutput = targetActions.some((a) => (a.outputs || []).includes(outputKey));
     if (!producesOutput) return [];
 
@@ -151,13 +132,7 @@ export class WorkflowValidationService {
       const isPreceding = cOrder < currColOrder || (cOrder === currColOrder && rOrder < currRowOrder);
       if (!isPreceding) return;
 
-      const cellActions = otherCell.actions && otherCell.actions.length > 0
-        ? otherCell.actions
-        : otherCell.action && otherCell.action !== 'passthrough'
-        ? [{ type: otherCell.action, outputs: [] }]
-        : [];
-
-      const producesKey = cellActions.some((act) => (act.outputs || []).includes(outputKey));
+      const producesKey = getCellActions(otherCell).some((act) => (act.outputs || []).includes(outputKey));
       if (producesKey) {
         sources.push({ cellKey: `${otherCell.rowId}:${otherCell.colId}` });
       }
@@ -198,12 +173,7 @@ export class WorkflowValidationService {
     const cell = matrix.cells[`${rowId}:${colId}`];
     if (!cell) return [];
 
-    const actions = cell.actions && cell.actions.length > 0
-      ? cell.actions
-      : cell.action && cell.action !== 'passthrough'
-      ? [{ type: cell.action, inputs: [], outputs: [] }]
-      : [];
-
+    const actions = getCellActions(cell);
     const allOutputs = Array.from(new Set(actions.flatMap((a) => a.outputs || [])));
     return allOutputs.filter((outKey) => this.isOutputClashing(outKey, matrix, rowId, colId).clashing);
   }

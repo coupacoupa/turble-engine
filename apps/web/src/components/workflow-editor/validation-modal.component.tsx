@@ -73,7 +73,7 @@ export const ValidationModal: React.FC<ValidationModalProps> = ({ isOpen, onClos
   const hasWarnings = issues.some((i) => i.type === 'warning');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 font-sans select-none">
+    <div className="fixed inset-0 z-modal flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 font-sans select-none">
       <div className="bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-150">
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">

@@ -22,6 +22,7 @@ import {
   Check,
 } from 'lucide-react';
 import { MatrixSchema, WorkflowInputField, WorkflowOutputField, StepEvaluationRecord, CellActionItem } from '@/types/matrix.types';
+import { getCellActions } from '@/utils/cell-actions.util';
 import { MatrixExecutionResult } from '@/services/matrix-evaluator.service';
 
 export interface TestCaseInstance {
@@ -285,7 +286,7 @@ export const ExecutionInspectorBottomPanel: React.FC<ExecutionInspectorBottomPan
         const fullLabel = `${col.label} × ${row.label}`;
         const keyStr = `${colLetter}${rowNum}`;
 
-        const actionsList: CellActionItem[] = cell.actions || (cell.action ? [{ id: cell.id, order: 0, type: cell.action, tableRuleConfig: cell.tableRuleConfig, inputs: [], outputs: [] }] : []);
+        const actionsList: CellActionItem[] = getCellActions(cell);
 
         let isMatch = false;
         actionsList.forEach((act) => {
@@ -468,7 +469,7 @@ export const ExecutionInspectorBottomPanel: React.FC<ExecutionInspectorBottomPan
   return (
     <div
       style={isExpanded ? { height: `${panelHeight}px` } : undefined}
-      className={`fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-300 shadow-2xl font-sans text-xs md:text-sm flex flex-col font-mono transition-shadow ${
+      className={`fixed bottom-0 left-0 right-0 z-docked-panel bg-white border-t border-slate-300 shadow-2xl text-xs md:text-sm flex flex-col font-mono transition-shadow ${
         isResizing ? 'select-none ring-2 ring-emerald-500/40' : ''
       }`}
     >
@@ -601,7 +602,7 @@ export const ExecutionInspectorBottomPanel: React.FC<ExecutionInspectorBottomPan
               ) : (
                 <span
                   onDoubleClick={() => handleStartRename(tc)}
-                  className="truncate max-w-[120px] select-none"
+                  className="truncate max-w-30 select-none"
                   title="Double-click to rename"
                 >
                   {tc.name}
@@ -743,7 +744,7 @@ export const ExecutionInspectorBottomPanel: React.FC<ExecutionInspectorBottomPan
 
                             <div className="flex-1 max-w-[55%] flex justify-end">
                               {field.type === 'boolean' ? (
-                                <div className="flex items-center space-x-1 w-full max-w-[110px]">
+                                <div className="flex items-center space-x-1 w-full max-w-27.5">
                                   <button
                                     type="button"
                                     onClick={() => handleFieldChange(field.key, true)}

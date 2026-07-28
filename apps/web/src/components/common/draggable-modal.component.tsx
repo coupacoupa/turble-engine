@@ -147,7 +147,7 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
         height: `${size.height}px`,
         zIndex,
       }}
-      className={`fixed bg-white border border-slate-300 rounded-xl shadow-2xl flex flex-col font-sans text-slate-900 transition-shadow duration-150 ${
+      className={`fixed z-modal bg-white border border-slate-300 rounded-xl shadow-2xl flex flex-col font-sans text-slate-900 transition-shadow duration-150 ${
         isDragging ? 'shadow-emerald-900/20 ring-2 ring-emerald-500/30' : ''
       } ${className}`}
     >
