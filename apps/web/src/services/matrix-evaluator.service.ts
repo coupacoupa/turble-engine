@@ -6,12 +6,13 @@ import {
   type ExecuteMatrixResponse,
   ExecuteMatrixRequestSchema,
 } from '@repo/proto';
-import type { ReplayEventLog, StepEvaluationRecord, CellResult, CellActionType } from '@/types/matrix.types';
+import type { MatrixSchema, ReplayEventLog, StepEvaluationRecord, CellResult, CellActionType } from '@/types/matrix.types';
+import { LocalMatrixEvaluatorService } from '@/services/local-matrix-evaluator.service';
 
 /** Singleton Connect RPC client instance for MatrixEvaluatorService */
 export const matrixEvaluatorClient = createClient(MatrixEvaluatorService, connectTransport);
 
-/** Result shape consumed by the frontend time-travel debugger */
+/** Result shape consumed by the frontend time-travel debugger & execution inspector */
 export interface MatrixExecutionResult {
   executionId: string;
   matrixId: string;
@@ -83,8 +84,24 @@ function mapProtoResponseToResult(res: ExecuteMatrixResponse): MatrixExecutionRe
 }
 
 export class MatrixEvaluatorConnectService {
-  /** Execute matrix via backend Connect-RPC endpoint and map to frontend-friendly result */
-  static async executeMatrix(matrixId: string, initialPayload: Record<string, any>): Promise<MatrixExecutionResult> {
+  /** Execute matrix via local strict Column-by-Column, Row-by-Row engine with RPC fallback */
+  static async executeMatrix(matrix: MatrixSchema | string, initialPayload: Record<string, any>): Promise<MatrixExecutionResult> {
+    if (typeof matrix !== 'string' && matrix.id) {
+      try {
+        const response = await matrixEvaluatorClient.executeMatrix(
+          create(ExecuteMatrixRequestSchema, {
+            matrixId: matrix.id,
+            initialPayloadJson: JSON.stringify(initialPayload),
+          }),
+        );
+        return mapProtoResponseToResult(response);
+      } catch (err) {
+        // Fallback to local evaluation engine ensuring strict Column-by-Column, Row-by-Row ordering
+        return LocalMatrixEvaluatorService.evaluateMatrix(matrix, initialPayload);
+      }
+    }
+
+    const matrixId = typeof matrix === 'string' ? matrix : matrix.id;
     const response = await matrixEvaluatorClient.executeMatrix(
       create(ExecuteMatrixRequestSchema, {
         matrixId,

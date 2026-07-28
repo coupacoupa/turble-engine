@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType, CellSchema } from '@/types/matrix.types';
+import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType, CellSchema, StepEvaluationRecord } from '@/types/matrix.types';
 import { MatrixEvaluatorConnectService, type MatrixExecutionResult } from '@/services/matrix-evaluator.service';
 import { WorkflowStorageService } from '@/services/workflow-storage.service';
-import { SpreadsheetToolbar, WorkflowStudioTab } from '@/components/workflow-editor/spreadsheet-toolbar.component';
+import { SpreadsheetToolbar } from '@/components/workflow-editor/spreadsheet-toolbar.component';
 import { MatrixSheet, CellExecutionState, getExcelColumnLetter } from '@/components/workflow-editor/matrix-sheet.component';
-import { TestInputsModal } from '@/components/workflow-editor/test-inputs-modal.component';
 import { CellEditorModal } from '@/components/workflow-editor/cell-editor-modal.component';
 import { ActiveDependency } from '@/components/workflow-editor/dependency-connector-overlay.component';
-import { TimeTravelBar } from '@/components/debugger/time-travel-bar.component';
-import { ExecuteMatrixModal } from '@/components/workflow-editor/execute-matrix-modal.component';
 import { ValidationModal } from '@/components/workflow-editor/validation-modal.component';
 import { WorkflowValidationService } from '@/services/workflow-validation.service';
+
+import { ExecutionInspectorBottomPanel } from '@/components/workflow-editor/execution-inspector-bottom-panel.component';
 
 interface MatrixBuilderPageProps {
   workflowId: string;
@@ -28,7 +27,6 @@ const buildInitialInputPayload = (matrix?: MatrixSchema): Record<string, any> =>
 
 export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId, onBackToDashboard }) => {
   const [matrix, setMatrix] = useState<MatrixSchema | undefined>(() => WorkflowStorageService.getById(workflowId));
-  const [activeTab, setActiveTab] = useState<WorkflowStudioTab>('design');
 
   // Drawer selection & dependency graph state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -46,7 +44,9 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
   const [testInputPayload, setTestInputPayload] = useState<Record<string, any>>(() =>
     buildInitialInputPayload(matrix)
   );
-  const [isTestInputsModalOpen, setIsTestInputsModalOpen] = useState<boolean>(true);
+  const [isInspectorModalOpen, setIsInspectorModalOpen] = useState<boolean>(false);
+  const [hoveredStepRecord, setHoveredStepRecord] = useState<StepEvaluationRecord | undefined>();
+  const [hoveredVariableKey, setHoveredVariableKey] = useState<string | undefined>();
 
   // Ensure new matrix inputs are reflected in test input payload state
   useEffect(() => {
@@ -63,14 +63,8 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
     }
   }, [matrix?.inputs]);
 
-  // Show/Hide Dependency Flows setting state
-  const [showFlows, setShowFlows] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('turble_show_flows') !== 'false';
-    } catch {
-      return true;
-    }
-  });
+  // Show/Hide Dependency Flows setting state (Default: Untoggled / OFF)
+  const [showFlows, setShowFlows] = useState<boolean>(false);
 
   const handleToggleFlows = useCallback(() => {
     setShowFlows((prev) => {
@@ -83,7 +77,6 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
   }, []);
 
   // Modals & Replay state
-  const [isExecuteModalOpen, setIsExecuteModalOpen] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionResult, setExecutionResult] = useState<MatrixExecutionResult | undefined>();
@@ -431,10 +424,6 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
           setIsDrawerOpen(false);
           return;
         }
-        if (isExecuteModalOpen) {
-          setIsExecuteModalOpen(false);
-          return;
-        }
         if (isValidating) {
           setIsValidating(false);
           return;
@@ -447,7 +436,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
         }
       }
 
-      if (isInput || isDrawerOpen || isExecuteModalOpen || isValidating) {
+      if (isInput || isDrawerOpen || isValidating) {
         return;
       }
 
@@ -494,7 +483,6 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
     selectedCell,
     copiedCellKey,
     isDrawerOpen,
-    isExecuteModalOpen,
     isValidating,
   ]);
 
@@ -722,15 +710,19 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
     });
   };
 
-  // Run Matrix Execution via Connect-RPC Backend
-  const handleStartExecution = async (inputPayload: Record<string, any>) => {
+  // Run Matrix Execution via Strict Local Engine / Connect-RPC Backend
+  const handleStartExecution = async (inputPayload: Record<string, any>): Promise<MatrixExecutionResult> => {
+    if (!matrix) throw new Error('No matrix loaded');
     setIsExecuting(true);
     try {
-      const res = await MatrixEvaluatorConnectService.executeMatrix(matrix.id, inputPayload);
+      const res = await MatrixEvaluatorConnectService.executeMatrix(matrix, inputPayload);
       setExecutionResult(res);
       setCurrentStepIndex(0);
+      setIsInspectorModalOpen(true);
+      return res;
     } catch (err) {
-      console.error('[Execute] Connect-RPC call failed:', err);
+      console.error('[Execute] Execution call failed:', err);
+      throw err;
     } finally {
       setIsExecuting(false);
     }
@@ -749,7 +741,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
     if (!executionResult) return {};
     const map: Record<string, CellExecutionState> = {};
     const stepRecords = executionResult.eventLog?.stepRecords || [];
-    const maxIdx = activeTab === 'test' ? currentStepIndex : stepRecords.length - 1;
+    const maxIdx = currentStepIndex;
 
     stepRecords.slice(0, maxIdx + 1).forEach((rec) => {
       rec.cellResults?.forEach((cellRes) => {
@@ -760,21 +752,31 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
       });
     });
     return map;
-  }, [executionResult, currentStepIndex, activeTab]);
+  }, [executionResult, currentStepIndex]);
 
   // Compute test-mode data flow dependencies with values on arrows
   const testModeDependencies = useMemo(() => {
-    if (activeTab !== 'test') return activeDependencies;
+    if (!matrix) return activeDependencies;
 
-    const payload = stepSnapshot?.currentPayload || executionResult?.finalPayload || testInputPayload;
+    const activeRecord = hoveredStepRecord || stepSnapshot?.activeStepRecord;
+    const payload = hoveredStepRecord
+      ? hoveredStepRecord.initialPayload
+      : stepSnapshot?.currentPayload || executionResult?.finalPayload || testInputPayload;
+
     const colOrderMap = new Map(matrix.columns.map((c) => [c.id, c.order]));
     const rowOrderMap = new Map(matrix.rows.map((r) => [r.id, r.order]));
 
     const deps: ActiveDependency[] = [];
+    const hoveredCellKey = activeRecord?.cellResults?.[0]
+      ? `${activeRecord.cellResults[0].rowId}:${activeRecord.cellResults[0].colId}`
+      : undefined;
 
     Object.values(matrix.cells || {}).forEach((cell) => {
       if (!cell || !cell.enabled) return;
       const currentCellKey = `${cell.rowId}:${cell.colId}`;
+
+      // If hovering over a step, focus dependency lines on the hovered step cell
+      if (hoveredCellKey && currentCellKey !== hoveredCellKey) return;
 
       const actionsList = cell.actions && cell.actions.length > 0
         ? cell.actions
@@ -833,15 +835,17 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
       });
     });
 
+    if (hoveredVariableKey) {
+      return deps.filter((d) => d.variableName === hoveredVariableKey);
+    }
+
     return deps;
-  }, [activeTab, matrix, executionResult, stepSnapshot, testInputPayload, activeDependencies]);
+  }, [matrix, executionResult, stepSnapshot, testInputPayload, activeDependencies, hoveredStepRecord, hoveredVariableKey]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-100 font-sans overflow-hidden select-none">
       {/* 1. Header & Wireframe Toolbar Layout */}
       <SpreadsheetToolbar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
         matrix={matrix}
         selectedRow={selectedRow}
         selectedCol={selectedCol}
@@ -850,19 +854,17 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
         onUpdateDescription={handleUpdateDescription}
         onAddColumn={handleAddColumn}
         onAddRow={handleAddRow}
-        onRunExecution={() => handleStartExecution(testInputPayload)}
-        isExecuting={isExecuting}
         onBackToDashboard={onBackToDashboard}
         onOpenValidation={() => setIsValidating(true)}
         onExportJson={handleExportJson}
         onUpdateInputs={handleUpdateInputs}
-        onToggleTestInputsModal={() => setIsTestInputsModalOpen((prev) => !prev)}
-        isTestInputsModalOpen={isTestInputsModalOpen}
+        isTestInspectorOpen={isInspectorModalOpen}
+        onToggleTestInspector={() => setIsInspectorModalOpen((prev) => !prev)}
         showFlows={showFlows}
         onToggleFlows={handleToggleFlows}
       />
 
-      {/* 2. Main Studio Content View — Unified Sheet View across Design & Test Tabs */}
+      {/* 2. Main Studio Content View — Unified Sheet View */}
       <div className="flex-1 w-full h-full flex flex-row overflow-hidden relative min-h-0">
         <div className="flex-1 flex flex-col min-w-0 h-full relative">
           <MatrixSheet
@@ -887,29 +889,20 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
             onRenameColumn={handleRenameColumn}
             onRenameRow={handleRenameRow}
           />
-
-          {executionResult && (
-            <TimeTravelBar
-              eventLog={executionResult.eventLog}
-              currentStepIndex={currentStepIndex}
-              onStepChange={(idx) => setCurrentStepIndex(idx)}
-              currentPayload={stepSnapshot?.currentPayload}
-            />
-          )}
         </div>
       </div>
 
-      {/* Floating Draggable & Resizable Test Inputs Modal */}
-      {activeTab === 'test' && (
-        <TestInputsModal
-          isOpen={isTestInputsModalOpen}
-          onClose={() => setIsTestInputsModalOpen(false)}
+      {/* Docked Bottom Execution Inspector & Multi-Test Case Tabs */}
+      {isInspectorModalOpen && matrix && (
+        <ExecutionInspectorBottomPanel
+          isOpen={isInspectorModalOpen}
+          onClose={() => setIsInspectorModalOpen(false)}
           matrix={matrix}
-          inputPayload={testInputPayload}
-          onUpdateInputPayload={setTestInputPayload}
+          initialInputPayload={testInputPayload}
           onRunExecution={handleStartExecution}
           isExecuting={isExecuting}
-          executionResult={executionResult}
+          onHoverStepRecord={setHoveredStepRecord}
+          onHoverVariableKey={setHoveredVariableKey}
         />
       )}
 
@@ -930,14 +923,6 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
 
       {/* 4. Rule Audit & Validation Modal */}
       <ValidationModal isOpen={isValidating} onClose={() => setIsValidating(false)} matrix={matrix} />
-
-      {/* 5. Execution Input Payload Modal */}
-      <ExecuteMatrixModal
-        isOpen={isExecuteModalOpen}
-        onClose={() => setIsExecuteModalOpen(false)}
-        onRun={handleStartExecution}
-        isExecuting={isExecuting}
-      />
     </div>
   );
 };

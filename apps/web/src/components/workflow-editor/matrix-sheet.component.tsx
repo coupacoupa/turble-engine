@@ -410,7 +410,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                 data-corner-header="true"
                 role="columnheader"
                 aria-label="Row and Step column header"
-                className="sticky top-0 left-0 z-30 bg-slate-200 border-r border-b border-slate-200 p-2.5 text-center text-slate-500 font-bold text-[11px] relative"
+                className="sticky top-0 left-0 z-35 bg-slate-200 border-r border-b border-slate-200 p-2.5 text-center text-slate-500 font-bold text-[11px] relative"
                 style={{ width: rowHeaderWidth }}
               >
                 <div className="flex items-center justify-between text-slate-600 font-semibold px-1">
@@ -448,7 +448,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                     onDrop={(e) => handleColDrop(e, col.id)}
                     onDragEnd={handleColDragEnd}
                     style={{ width: w, minWidth: MIN_COL_WIDTH }}
-                    className={`sticky top-0 z-20 border-r border-b border-slate-200 p-2.5 transition-all relative group ${
+                    className={`sticky top-0 z-30 border-r border-b border-slate-200 p-2.5 transition-all relative group ${
                       isDraggingThisCol
                         ? 'opacity-30 border-2 border-dashed border-slate-400 bg-slate-100'
                         : isDragOverThisCol
@@ -456,8 +456,8 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                         : isActiveStep
                         ? 'bg-slate-200 text-slate-900 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-slate-800'
                         : isColSelected
-                        ? 'bg-slate-200/90 text-slate-900'
-                        : 'bg-slate-100 hover:bg-slate-200/80 text-slate-800'
+                        ? 'bg-slate-200 text-slate-900'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
                     }`}
                   >
                     {/* Selected Column Header Node Outline */}
@@ -555,16 +555,16 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                     onDrop={(e) => handleRowDrop(e, row.id)}
                     onDragEnd={handleRowDragEnd}
                     style={{ width: rowHeaderWidth, height: h }}
-                    className={`sticky left-0 z-20 p-2.5 border-r border-b border-slate-200 relative group transition-all ${
+                    className={`sticky left-0 z-30 p-2.5 border-r border-b border-slate-200 relative group transition-all ${
                       isDraggingThisRow
                         ? 'opacity-30 border-2 border-dashed border-slate-400 bg-slate-100'
                         : isDragOverThisRow
                         ? 'border-t-4 border-t-slate-700 bg-slate-200'
                         : row.isInterceptor
-                        ? 'bg-amber-100/80 text-amber-950'
+                        ? 'bg-amber-100 text-amber-950'
                         : isRowSelected
-                        ? 'bg-slate-200/90 text-slate-950 font-bold'
-                        : 'bg-slate-50 text-slate-800'
+                        ? 'bg-slate-200 text-slate-950 font-bold'
+                        : 'bg-slate-100 text-slate-800'
                     }`}
                   >
                     {/* Selected Row Header Node Outline */}

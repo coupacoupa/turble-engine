@@ -66,7 +66,7 @@ export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProp
       if (dep.sourceCellKey) {
         sourceEl = container ? container.querySelector(`[data-cell-key="${dep.sourceCellKey}"]`) : document.querySelector(`[data-cell-key="${dep.sourceCellKey}"]`);
       } else if (dep.isWorkflowInput) {
-        // Target the Workflow Inputs button in the top header toolbar
+        // Target the Inputs button in the top studio toolbar
         sourceEl = document.querySelector('[data-workflow-inputs-button="true"]') || (container ? container.querySelector('[data-corner-header="true"]') : null);
       }
 
@@ -141,7 +141,7 @@ export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProp
   if (paths.length === 0) return null;
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-30 overflow-visible">
+    <div className="fixed inset-0 pointer-events-none z-20 overflow-hidden">
       <svg className="w-full h-full absolute inset-0 pointer-events-none overflow-visible">
         <defs>
           <style>
@@ -269,7 +269,7 @@ export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProp
               top: `${p.midY}px`,
               transform: 'translate(-50%, -50%)',
             }}
-            className={`absolute z-50 px-2 py-0.5 rounded-md font-mono text-[10px] font-bold flex items-center space-x-1.5 shadow-md border animate-in fade-in duration-100 ${badgeBorder}`}
+            className={`absolute z-10 px-2 py-0.5 rounded-md font-mono text-[10px] font-bold flex items-center space-x-1.5 shadow-md border animate-in fade-in duration-100 ${badgeBorder}`}
           >
             <span className={`w-1.5 h-1.5 rounded-full ${dotBg} shrink-0`} />
             {isClash ? (

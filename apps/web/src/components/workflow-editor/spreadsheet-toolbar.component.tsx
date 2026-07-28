@@ -38,8 +38,6 @@ import {
 export type WorkflowStudioTab = 'design' | 'test';
 
 interface SpreadsheetToolbarProps {
-  activeTab: WorkflowStudioTab;
-  onTabChange: (tab: WorkflowStudioTab) => void;
   matrix: MatrixSchema;
   selectedRow?: DomainRowSchema;
   selectedCol?: StepColumnSchema;
@@ -48,21 +46,17 @@ interface SpreadsheetToolbarProps {
   onUpdateDescription: (description: string) => void;
   onAddColumn: () => void;
   onAddRow: (type: RowType) => void;
-  onRunExecution: () => void;
-  isExecuting?: boolean;
   onBackToDashboard: () => void;
   onOpenValidation: () => void;
   onExportJson: () => void;
   onUpdateInputs?: (inputs: WorkflowInputField[]) => void;
-  onToggleTestInputsModal?: () => void;
-  isTestInputsModalOpen?: boolean;
   showFlows?: boolean;
   onToggleFlows?: () => void;
+  isTestInspectorOpen?: boolean;
+  onToggleTestInspector?: () => void;
 }
 
 export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
-  activeTab,
-  onTabChange,
   matrix,
   selectedRow,
   selectedCol,
@@ -71,16 +65,14 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
   onUpdateDescription,
   onAddColumn,
   onAddRow,
-  onRunExecution,
-  isExecuting = false,
   onBackToDashboard,
   onOpenValidation,
   onExportJson,
   onUpdateInputs,
-  onToggleTestInputsModal,
-  isTestInputsModalOpen = true,
   showFlows = true,
   onToggleFlows,
+  isTestInspectorOpen = false,
+  onToggleTestInspector,
 }) => {
   const [isInputsModalOpen, setIsInputsModalOpen] = useState(false);
   const [isOutputsModalOpen, setIsOutputsModalOpen] = useState(false);
@@ -257,7 +249,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
   };
 
   return (
-    <div className="bg-white border-b border-slate-200 font-sans text-xs shrink-0 select-none w-full">
+    <div className="bg-white border-b border-slate-200 font-sans text-xs shrink-0 select-none w-full relative z-30 shadow-xs">
       {/* 1. Flush Edge-to-Edge Header Bar */}
       <div className="px-4 py-2 flex items-center justify-between border-b border-slate-100 flex-wrap gap-2">
         {/* Left: Back button, Logo, and Inline Editable Title/Description */}
@@ -300,31 +292,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
           </div>
         </div>
 
-        {/* Center: Tab Control Segment */}
-        <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 font-mono shrink-0">
-          <button
-            onClick={() => onTabChange('design')}
-            className={`px-3.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'design'
-                ? 'bg-white text-slate-900 border border-slate-200 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <span>Design</span>
-          </button>
-
-          <button
-            onClick={() => onTabChange('test')}
-            className={`px-3.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'test'
-                ? 'bg-white text-slate-900 border border-slate-200 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <span>Test</span>
-          </button>
-        </div>
-
         {/* Right: Global Actions */}
         <div className="flex items-center space-x-2">
           <button
@@ -338,149 +305,100 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
       </div>
 
       {/* 2. Flush Edge-to-Edge Sub-Bar (Clean Compact Workflow Tools) */}
-      <div className="px-4 py-1.5 bg-slate-50/80 min-h-[38px] flex items-center justify-between font-mono gap-3">
-        {activeTab === 'design' ? (
-          <div className="flex items-center justify-between w-full space-x-3">
-            {/* Cluster 1: Structure Controls (+ Add: Row | Sub-WF | Step) */}
-            <div className="flex items-center space-x-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs shrink-0 font-mono text-[11px]">
-              <div className="flex items-center space-x-1 px-2 py-0.5 text-slate-500 font-bold select-none">
-                <Plus className="h-3.5 w-3.5 text-slate-600" />
-                <span>Add</span>
-              </div>
-              <div className="h-3.5 w-px bg-slate-200 shrink-0" />
-              <button
-                onClick={() => onAddRow('standard')}
-                className="px-2.5 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-semibold transition-colors cursor-pointer"
-                title="Add Standard Row"
-              >
-                Row
-              </button>
-              <button
-                onClick={() => onAddRow('workflow')}
-                className="px-2.5 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-semibold transition-colors cursor-pointer"
-                title="Add Sub-Workflow Row"
-              >
-                Sub-WF
-              </button>
-              <button
-                onClick={onAddColumn}
-                className="px-2.5 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-semibold transition-colors cursor-pointer"
-                title="Add Step Column"
-              >
-                Step
-              </button>
+      <div className="px-4 py-1.5 bg-slate-100 min-h-[38px] flex items-center justify-between font-mono gap-3">
+        <div className="flex items-center justify-between w-full space-x-3">
+          {/* Cluster 1: Structure Controls (+ Add: Row | Sub-WF | Step) */}
+          <div className="flex items-center space-x-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs shrink-0 font-mono text-[11px]">
+            <div className="flex items-center space-x-1 px-2 py-0.5 text-slate-500 font-bold select-none">
+              <Plus className="h-3.5 w-3.5 text-slate-600" />
+              <span>Add</span>
             </div>
-
-            <div className="h-4 w-px bg-slate-300 shrink-0" />
-
-            {/* Cluster 2: Workflow Inputs Summary Button */}
+            <div className="h-3.5 w-px bg-slate-200 shrink-0" />
             <button
-              data-workflow-inputs-button="true"
-              onClick={() => setIsInputsModalOpen(true)}
-              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
-              title="Manage Workflow Input Parameters"
+              onClick={() => onAddRow('standard')}
+              className="px-2.5 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-semibold transition-colors cursor-pointer"
+              title="Add Standard Row"
             >
-              <span className="font-semibold">Inputs</span>
-              <span className="text-[10px] text-slate-500 tabular-nums">{inputs.length}</span>
+              Row
             </button>
-
-            <div className="h-4 w-px bg-slate-300 shrink-0" />
-
-            {/* Cluster 3: Workflow Outputs Summary Button (Read-only) */}
             <button
-              onClick={() => setIsOutputsModalOpen(true)}
-              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
-              title="View Derived Decision Outputs"
+              onClick={() => onAddRow('workflow')}
+              className="px-2.5 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-semibold transition-colors cursor-pointer"
+              title="Add Sub-Workflow Row"
             >
-              <span className="font-semibold">Outputs</span>
-              <span className="text-[10px] text-slate-500 tabular-nums">{derivedOutputs.length}</span>
+              Sub-WF
             </button>
-
-            <div className="h-4 w-px bg-slate-300 shrink-0" />
-
-            {/* Cluster 4: Show/Hide Dependency Flows Toggle */}
             <button
-              onClick={onToggleFlows}
-              className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs shrink-0 ${
-                showFlows
-                  ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
-                  : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
-              }`}
-              title={showFlows ? 'Hide dependency flow lines' : 'Show dependency flow lines'}
+              onClick={onAddColumn}
+              className="px-2.5 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-semibold transition-colors cursor-pointer"
+              title="Add Step Column"
             >
-              <span>Flows</span>
+              Step
             </button>
-
-            <div className="flex-1 min-w-0" />
-
-            {/* Cluster 4: Grid stats */}
-            <span className="bg-slate-200/70 text-slate-600 font-bold text-[10px] px-2.5 py-1 rounded shrink-0">
-              {matrix.rows.length} Rows × {matrix.columns.length} Cols
-            </span>
           </div>
-        ) : (
-          /* Test Mode Sub-bar */
-          <div className="flex items-center justify-between w-full space-x-3">
-            <div className="flex items-center space-x-2 shrink-0">
-              {onToggleTestInputsModal && (
-                <button
-                  onClick={onToggleTestInputsModal}
-                  className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg font-mono text-[11px] border transition-all cursor-pointer shadow-2xs shrink-0 ${
-                    isTestInputsModalOpen
-                      ? 'bg-slate-200/80 text-slate-900 border-slate-300 font-bold'
-                      : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 font-semibold'
-                  }`}
-                  title="Toggle Draggable Test Inputs Window"
-                >
-                  <span>Test Inputs</span>
-                  <span className="text-[10px] text-slate-500 tabular-nums">{inputs.length}</span>
-                </button>
-              )}
-            </div>
 
-            <div className="h-4 w-px bg-slate-300 shrink-0" />
+          <div className="h-4 w-px bg-slate-300 shrink-0" />
 
-            {/* Cluster 2: Workflow Inputs Button */}
-            <button
-              data-workflow-inputs-button="true"
-              onClick={() => setIsInputsModalOpen(true)}
-              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
-              title="View Workflow Input Definitions"
-            >
-              <span className="font-semibold">Inputs</span>
-              <span className="text-[10px] text-slate-500 tabular-nums">{inputs.length}</span>
-            </button>
+          {/* Cluster 2: Workflow Inputs Summary Button */}
+          <button
+            data-workflow-inputs-button="true"
+            onClick={() => setIsInputsModalOpen(true)}
+            className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
+            title="Manage Workflow Input Parameters"
+          >
+            <span className="font-semibold">Inputs</span>
+            <span className="text-[10px] text-slate-500 tabular-nums">{inputs.length}</span>
+          </button>
 
-            <div className="h-4 w-px bg-slate-300 shrink-0" />
+          <div className="h-4 w-px bg-slate-300 shrink-0" />
 
-            {/* Cluster 3: Outputs Summary Button */}
-            <button
-              onClick={() => setIsOutputsModalOpen(true)}
-              className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
-              title="View Derived Decision Outputs"
-            >
-              <span className="font-semibold">Outputs</span>
-              <span className="text-[10px] text-slate-500 tabular-nums">{derivedOutputs.length}</span>
-            </button>
+          {/* Cluster 3: Workflow Outputs Summary Button (Read-only) */}
+          <button
+            onClick={() => setIsOutputsModalOpen(true)}
+            className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
+            title="View Derived Decision Outputs"
+          >
+            <span className="font-semibold">Outputs</span>
+            <span className="text-[10px] text-slate-500 tabular-nums">{derivedOutputs.length}</span>
+          </button>
 
-            <div className="h-4 w-px bg-slate-300 shrink-0" />
+          <div className="h-4 w-px bg-slate-300 shrink-0" />
 
-            {/* Cluster 4: Show/Hide Dependency Flows Toggle */}
-            <button
-              onClick={onToggleFlows}
-              className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs shrink-0 ${
-                showFlows
-                  ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
-                  : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
-              }`}
-              title={showFlows ? 'Hide dependency flow lines' : 'Show dependency flow lines'}
-            >
-              <span>Flows</span>
-            </button>
+          {/* Cluster 4: Show/Hide Dependency Flows Toggle */}
+          <button
+            onClick={onToggleFlows}
+            className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs shrink-0 ${
+              showFlows
+                ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
+                : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
+            }`}
+            title={showFlows ? 'Hide dependency flow lines' : 'Show dependency flow lines'}
+          >
+            <span>Flows</span>
+          </button>
 
-            <div className="flex-1 min-w-0" />
-          </div>
-        )}
+          <div className="h-4 w-px bg-slate-300 shrink-0" />
+
+          {/* Cluster 5: Direct Test & Execution Inspector Button */}
+          <button
+            onClick={onToggleTestInspector}
+            className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs shrink-0 ${
+              isTestInspectorOpen
+                ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
+                : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
+            }`}
+            title={isTestInspectorOpen ? 'Close Execution Inspector' : 'Open Execution Inspector'}
+          >
+            <span>Test</span>
+          </button>
+
+          <div className="flex-1 min-w-0" />
+
+          {/* Cluster 6: Grid stats */}
+          <span className="bg-slate-200/70 text-slate-600 font-bold text-[10px] px-2.5 py-1 rounded shrink-0">
+            {matrix.rows.length} Rows × {matrix.columns.length} Cols
+          </span>
+        </div>
       </div>
 
       {/* 1. High-Density Enterprise Input Schema Setup Modal */}
