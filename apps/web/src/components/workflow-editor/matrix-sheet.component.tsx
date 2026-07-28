@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Plus, Shield, Layers, PlusCircle, Trash2, Cpu, AlertTriangle, GripVertical } from 'lucide-react';
+import { Plus, Layers, PlusCircle, Trash2, AlertTriangle, GripVertical } from 'lucide-react';
 import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType, CellSchema } from '@/types/matrix.types';
 import { DependencyConnectorOverlay, ActiveDependency } from '@/components/workflow-editor/dependency-connector-overlay.component';
 import { WorkflowValidationService } from '@/services/workflow-validation.service';
@@ -493,7 +493,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                             }}
                             onBlur={handleSaveColName}
                             onClick={(e) => e.stopPropagation()}
-                            className="font-bold text-slate-900 text-xs bg-white border border-emerald-500 rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-emerald-500 w-full min-w-0"
+                            className="font-bold text-slate-900 text-xs bg-white border border-slate-400 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-slate-800 flex-1 min-w-[90px] shadow-xs"
                           />
                         ) : (
                           <div
@@ -572,92 +572,65 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                       <div className="absolute inset-0 pointer-events-none z-30 border border-slate-400 rounded-xs shadow-[0_0_0_1px_rgba(15,23,42,0.1)]" />
                     )}
 
-                    <div className="flex items-center justify-between space-x-2">
-                      <div className="flex items-center space-x-1.5 min-w-0 flex-1">
-                        <div
-                          draggable={!isEditingThisRow}
-                          onDragStart={(e) => handleRowDragStart(e, row.id)}
-                          className="cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-slate-300/70 transition-colors shrink-0"
-                          title="Drag handle to reorder row"
-                        >
-                          <GripVertical className="h-3.5 w-3.5 text-slate-500 hover:text-slate-800 shrink-0" />
-                        </div>
-                        <span className="px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700 font-bold text-[10px] shrink-0">
-                          {rIdx + 1}
-                        </span>
-                        {row.type === 'workflow' ? (
-                          <Layers className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-                        ) : (
-                          <Cpu className="h-3.5 w-3.5 text-slate-500 shrink-0" />
-                        )}
-
-                        {isEditingThisRow ? (
-                          <input
-                            type="text"
-                            value={editingRowText}
-                            autoFocus
-                            onChange={(e) => setEditingRowText(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveRowName();
-                              if (e.key === 'Escape') setEditingRowId(null);
-                            }}
-                            onBlur={handleSaveRowName}
-                            onClick={(e) => e.stopPropagation()}
-                            className="font-sans font-bold text-xs bg-white border border-emerald-500 rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-emerald-500 w-full min-w-0"
-                          />
-                        ) : (
+                    <div className="flex flex-col justify-center h-full space-y-1">
+                      {/* Row 1: Grip, Index, Title / Rename Input, Delete button */}
+                      <div className="flex items-center justify-between space-x-1.5 min-w-0">
+                        <div className="flex items-center space-x-1.5 min-w-0 flex-1">
                           <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStartRenameRow(row.id, row.label);
-                            }}
-                            className="flex items-center min-w-0 cursor-text hover:bg-slate-200/60 rounded px-1 py-0.5 transition-colors"
-                            title="Click to edit row name"
+                            draggable={!isEditingThisRow}
+                            onDragStart={(e) => handleRowDragStart(e, row.id)}
+                            className="cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-slate-300/70 transition-colors shrink-0"
+                            title="Drag handle to reorder row"
                           >
-                            <span className="font-sans font-bold text-xs truncate">{row.label}</span>
+                            <GripVertical className="h-3.5 w-3.5 text-slate-500 hover:text-slate-800 shrink-0" />
                           </div>
-                        )}
-                      </div>
+                          <span className="px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700 font-bold text-[10px] shrink-0">
+                            {rIdx + 1}
+                          </span>
 
-                      <div className="flex items-center space-x-1 shrink-0">
-                        <button
-                          onClick={() => onToggleInterceptor(row.id)}
-                          className={`p-1 rounded text-[10px] font-mono border transition-colors cursor-pointer ${
-                            row.isInterceptor
-                              ? 'bg-amber-200 text-amber-950 border-amber-400'
-                              : 'text-slate-400 hover:text-slate-700 border-transparent hover:bg-slate-200'
-                          }`}
-                          title="Toggle Always-Run Global Interceptor"
-                        >
-                          <Shield className="h-3 w-3" />
-                        </button>
+                          {isEditingThisRow ? (
+                            <input
+                              type="text"
+                              value={editingRowText}
+                              autoFocus
+                              onChange={(e) => setEditingRowText(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveRowName();
+                                if (e.key === 'Escape') setEditingRowId(null);
+                              }}
+                              onBlur={handleSaveRowName}
+                              onClick={(e) => e.stopPropagation()}
+                              className="font-sans font-bold text-xs bg-white border border-slate-400 rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-slate-800 w-full min-w-0 shadow-2xs"
+                            />
+                          ) : (
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStartRenameRow(row.id, row.label);
+                              }}
+                              className="flex items-center min-w-0 cursor-text hover:bg-slate-200/60 rounded px-1 py-0.5 transition-colors flex-1"
+                              title="Click to edit row name"
+                            >
+                              <span className="font-sans font-bold text-xs truncate">{row.label}</span>
+                            </div>
+                          )}
+                        </div>
 
                         <button
                           onClick={() => onDeleteRow(row.id)}
-                          className="text-slate-400 hover:text-rose-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded hover:bg-rose-50"
+                          className="text-slate-400 hover:text-rose-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded hover:bg-rose-50 shrink-0"
                           title="Delete Row"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
-                    </div>
 
-                    <div className="flex items-center space-x-1.5 mt-1 font-mono text-[10px]">
-                      <span
-                        className={`px-1.5 py-0.2 rounded border font-semibold ${
-                          row.type === 'workflow'
-                            ? 'bg-slate-100 text-slate-600 border-slate-200'
-                            : 'bg-slate-100 text-slate-600 border-slate-200'
-                        }`}
-                      >
-                        {row.type.toUpperCase()}
-                      </span>
-
-                      {row.isInterceptor && (
-                        <span className="bg-amber-200 text-amber-900 border border-amber-300 px-1.5 py-0.2 rounded font-bold">
-                          INTERCEPTOR
+                      {/* Row 2: Type Badge aligned below */}
+                      <div className="flex items-center space-x-1.5 pl-[26px] font-mono text-[9px]">
+                        <span className="px-1.5 py-0.2 rounded border font-semibold bg-slate-100 text-slate-600 border-slate-200 shrink-0">
+                          {row.type === 'workflow' ? 'SUB-WF' : 'STANDARD'}
                         </span>
-                      )}
+                      </div>
                     </div>
 
                     {/* Row Resize Handle (bottom edge) */}

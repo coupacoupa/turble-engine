@@ -304,26 +304,24 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
         <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 font-mono shrink-0">
           <button
             onClick={() => onTabChange('design')}
-            className={`px-3 py-1 rounded-md text-xs font-bold flex items-center space-x-2 transition-all cursor-pointer ${
+            className={`px-3.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'design'
                 ? 'bg-white text-slate-900 border border-slate-200 shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Grid className="h-3.5 w-3.5" />
-            <span>Design workflow</span>
+            <span>Design</span>
           </button>
 
           <button
             onClick={() => onTabChange('test')}
-            className={`px-3 py-1 rounded-md text-xs font-bold flex items-center space-x-2 transition-all cursor-pointer ${
+            className={`px-3.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'test'
                 ? 'bg-white text-slate-900 border border-slate-200 shadow-2xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <FlaskConical className="h-3.5 w-3.5" />
-            <span>Test & Debug</span>
+            <span>Test</span>
           </button>
         </div>
 
@@ -331,10 +329,9 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
         <div className="flex items-center space-x-2">
           <button
             onClick={onExportJson}
-            className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-mono text-[11px] font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-2xs"
+            className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-mono text-[11px] font-semibold transition-colors cursor-pointer shadow-2xs"
             title="Export JSON Schema"
           >
-            <FileJson className="h-3.5 w-3.5" />
             <span>Export</span>
           </button>
 
@@ -353,59 +350,57 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
       <div className="px-4 py-1.5 bg-slate-50/80 min-h-[38px] flex items-center justify-between font-mono gap-3">
         {activeTab === 'design' ? (
           <div className="flex items-center justify-between w-full space-x-3">
-            {/* Cluster 1: Structure Controls (+ Row, + Sub-WF, + Step) */}
-            <div className="flex items-center space-x-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs shrink-0">
+            {/* Cluster 1: Structure Controls (+ Add: Row | Sub-WF | Step) */}
+            <div className="flex items-center space-x-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs shrink-0 font-mono text-[11px]">
+              <div className="flex items-center space-x-1 px-2 py-0.5 text-slate-500 font-bold select-none">
+                <Plus className="h-3.5 w-3.5 text-slate-600" />
+                <span>Add</span>
+              </div>
+              <div className="h-3.5 w-px bg-slate-200 shrink-0" />
               <button
                 onClick={() => onAddRow('standard')}
-                className="px-2 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-mono text-[11px] font-semibold flex items-center space-x-1 transition-colors cursor-pointer"
+                className="px-2.5 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-semibold transition-colors cursor-pointer"
                 title="Add Standard Row"
               >
-                <PlusCircle className="h-3.5 w-3.5 text-slate-500" />
-                <span>+ Row</span>
+                Row
               </button>
-
               <button
                 onClick={() => onAddRow('workflow')}
-                className="px-2 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-mono text-[11px] font-semibold flex items-center space-x-1 transition-colors cursor-pointer"
+                className="px-2.5 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-semibold transition-colors cursor-pointer"
                 title="Add Sub-Workflow Row"
               >
-                <Layers className="h-3.5 w-3.5 text-slate-500" />
-                <span>+ Sub-WF</span>
+                Sub-WF
               </button>
-
               <button
                 onClick={onAddColumn}
-                className="px-2 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-mono text-[11px] font-semibold flex items-center space-x-1 transition-colors cursor-pointer"
+                className="px-2.5 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-semibold transition-colors cursor-pointer"
                 title="Add Step Column"
               >
-                <Plus className="h-3.5 w-3.5 text-slate-500" />
-                <span>+ Step</span>
+                Step
               </button>
             </div>
 
             <div className="h-4 w-px bg-slate-300 shrink-0" />
 
-            {/* Cluster 2: Workflow Inputs Summary Badge Button */}
+            {/* Cluster 2: Workflow Inputs Summary Button */}
             <button
               data-workflow-inputs-button="true"
               onClick={() => setIsInputsModalOpen(true)}
               className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
               title="Manage Workflow Input Parameters"
             >
-              <Database className="h-3.5 w-3.5 text-slate-500" />
               <span className="font-semibold">Inputs</span>
               <span className="text-[10px] text-slate-500 tabular-nums">{inputs.length}</span>
             </button>
 
             <div className="h-4 w-px bg-slate-300 shrink-0" />
 
-            {/* Cluster 3: Workflow Outputs Summary Badge Button (Read-only) */}
+            {/* Cluster 3: Workflow Outputs Summary Button (Read-only) */}
             <button
               onClick={() => setIsOutputsModalOpen(true)}
               className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
               title="View Derived Decision Outputs"
             >
-              <ArrowRight className="h-3.5 w-3.5 text-slate-500" />
               <span className="font-semibold">Outputs</span>
               <span className="text-[10px] text-slate-500 tabular-nums">{derivedOutputs.length}</span>
             </button>
@@ -415,14 +410,13 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
             {/* Cluster 4: Show/Hide Dependency Flows Toggle */}
             <button
               onClick={onToggleFlows}
-              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs shrink-0 ${
+              className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs shrink-0 ${
                 showFlows
                   ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
                   : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
               }`}
               title={showFlows ? 'Hide dependency flow lines' : 'Show dependency flow lines'}
             >
-              <GitBranch className={`h-3.5 w-3.5 ${showFlows ? 'text-slate-300' : 'text-slate-400'}`} />
               <span>Flows</span>
             </button>
 
@@ -437,22 +431,20 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
           /* Test Mode Sub-bar */
           <div className="flex items-center justify-between w-full space-x-3">
             <div className="flex items-center space-x-2 shrink-0">
-              <span className="bg-slate-200 text-slate-700 border border-slate-300 px-2 py-0.5 rounded font-semibold text-[10px] flex items-center space-x-1 shrink-0">
-                <FlaskConical className="h-3.5 w-3.5" />
+              <span className="bg-slate-200 text-slate-700 border border-slate-300 px-2 py-0.5 rounded font-semibold text-[10px] shrink-0">
                 <span>TEST LAB</span>
               </span>
 
               {onToggleInputOverridePanel && (
                 <button
                   onClick={onToggleInputOverridePanel}
-                  className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs ${
+                  className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs ${
                     isInputOverridePanelOpen
                       ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
                       : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
                   }`}
                   title="Toggle Input Overrides Side Panel"
                 >
-                  <Sliders className={`h-3.5 w-3.5 ${isInputOverridePanelOpen ? 'text-slate-300' : 'text-slate-500'}`} />
                   <span>Input Overrides</span>
                 </button>
               )}
@@ -467,7 +459,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
               className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
               title="View Workflow Input Definitions"
             >
-              <Database className="h-3.5 w-3.5 text-slate-500" />
               <span className="font-semibold">Inputs</span>
               <span className="text-[10px] text-slate-500 tabular-nums">{inputs.length}</span>
             </button>
@@ -480,7 +471,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
               className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
               title="View Derived Decision Outputs"
             >
-              <ArrowRight className="h-3.5 w-3.5 text-slate-500" />
               <span className="font-semibold">Outputs</span>
               <span className="text-[10px] text-slate-500 tabular-nums">{derivedOutputs.length}</span>
             </button>
@@ -490,14 +480,13 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
             {/* Cluster 4: Show/Hide Dependency Flows Toggle */}
             <button
               onClick={onToggleFlows}
-              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs shrink-0 ${
+              className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs shrink-0 ${
                 showFlows
                   ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
                   : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
               }`}
               title={showFlows ? 'Hide dependency flow lines' : 'Show dependency flow lines'}
             >
-              <GitBranch className={`h-3.5 w-3.5 ${showFlows ? 'text-slate-300' : 'text-slate-400'}`} />
               <span>Flows</span>
             </button>
 
