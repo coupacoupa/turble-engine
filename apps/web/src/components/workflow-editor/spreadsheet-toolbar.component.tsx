@@ -54,8 +54,8 @@ interface SpreadsheetToolbarProps {
   onOpenValidation: () => void;
   onExportJson: () => void;
   onUpdateInputs?: (inputs: WorkflowInputField[]) => void;
-  onToggleInputOverridePanel?: () => void;
-  isInputOverridePanelOpen?: boolean;
+  onToggleTestInputsModal?: () => void;
+  isTestInputsModalOpen?: boolean;
   showFlows?: boolean;
   onToggleFlows?: () => void;
 }
@@ -77,8 +77,8 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
   onOpenValidation,
   onExportJson,
   onUpdateInputs,
-  onToggleInputOverridePanel,
-  isInputOverridePanelOpen = true,
+  onToggleTestInputsModal,
+  isTestInputsModalOpen = true,
   showFlows = true,
   onToggleFlows,
 }) => {
@@ -334,15 +334,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
           >
             <span>Export</span>
           </button>
-
-          <button
-            onClick={onRunExecution}
-            disabled={isExecuting}
-            className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-50"
-          >
-            <Play className="h-3.5 w-3.5 fill-current" />
-            <span>{isExecuting ? 'Running...' : 'Run'}</span>
-          </button>
         </div>
       </div>
 
@@ -431,21 +422,18 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
           /* Test Mode Sub-bar */
           <div className="flex items-center justify-between w-full space-x-3">
             <div className="flex items-center space-x-2 shrink-0">
-              <span className="bg-slate-200 text-slate-700 border border-slate-300 px-2 py-0.5 rounded font-semibold text-[10px] shrink-0">
-                <span>TEST LAB</span>
-              </span>
-
-              {onToggleInputOverridePanel && (
+              {onToggleTestInputsModal && (
                 <button
-                  onClick={onToggleInputOverridePanel}
-                  className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs ${
-                    isInputOverridePanelOpen
-                      ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
-                      : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                  onClick={onToggleTestInputsModal}
+                  className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg font-mono text-[11px] border transition-all cursor-pointer shadow-2xs shrink-0 ${
+                    isTestInputsModalOpen
+                      ? 'bg-slate-200/80 text-slate-900 border-slate-300 font-bold'
+                      : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 font-semibold'
                   }`}
-                  title="Toggle Input Overrides Side Panel"
+                  title="Toggle Draggable Test Inputs Window"
                 >
-                  <span>Input Overrides</span>
+                  <span>Test Inputs</span>
+                  <span className="text-[10px] text-slate-500 tabular-nums">{inputs.length}</span>
                 </button>
               )}
             </div>
@@ -491,21 +479,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
             </button>
 
             <div className="flex-1 min-w-0" />
-
-            <div className="flex items-center space-x-2 shrink-0">
-              <button
-                onClick={onRunExecution}
-                disabled={isExecuting}
-                className="px-3.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center space-x-1.5 transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
-              >
-                {isExecuting ? (
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Zap className="h-3.5 w-3.5 fill-current" />
-                )}
-                <span>{isExecuting ? 'Simulating...' : 'Run Test Simulation'}</span>
-              </button>
-            </div>
           </div>
         )}
       </div>

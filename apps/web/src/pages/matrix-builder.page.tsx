@@ -4,7 +4,7 @@ import { MatrixEvaluatorConnectService, type MatrixExecutionResult } from '@/ser
 import { WorkflowStorageService } from '@/services/workflow-storage.service';
 import { SpreadsheetToolbar, WorkflowStudioTab } from '@/components/workflow-editor/spreadsheet-toolbar.component';
 import { MatrixSheet, CellExecutionState, getExcelColumnLetter } from '@/components/workflow-editor/matrix-sheet.component';
-import { TestInputOverridePanel } from '@/components/workflow-editor/test-input-override-panel.component';
+import { TestInputsModal } from '@/components/workflow-editor/test-inputs-modal.component';
 import { CellEditorModal } from '@/components/workflow-editor/cell-editor-modal.component';
 import { ActiveDependency } from '@/components/workflow-editor/dependency-connector-overlay.component';
 import { TimeTravelBar } from '@/components/debugger/time-travel-bar.component';
@@ -17,12 +17,13 @@ interface MatrixBuilderPageProps {
   onBackToDashboard: () => void;
 }
 
-const DEFAULT_TEST_INPUTS: Record<string, any> = {
-  applicantScore: 740,
-  dti: 0.25,
-  annualIncome: 95000,
-  requestedAmount: 15000,
-  employmentStatus: 'FULL_TIME',
+const buildInitialInputPayload = (matrix?: MatrixSchema): Record<string, any> => {
+  if (!matrix || !matrix.inputs || matrix.inputs.length === 0) return {};
+  const payload: Record<string, any> = {};
+  matrix.inputs.forEach((inp) => {
+    payload[inp.key] = inp.defaultValue !== undefined ? inp.defaultValue : '';
+  });
+  return payload;
 };
 
 export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId, onBackToDashboard }) => {
@@ -41,9 +42,26 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
   const [copiedCell, setCopiedCell] = useState<CellSchema | null>(null);
   const [copiedCellKey, setCopiedCellKey] = useState<string | null>(null);
 
-  // Test & Debug input state & override side panel toggle
-  const [testInputPayload, setTestInputPayload] = useState<Record<string, any>>(DEFAULT_TEST_INPUTS);
-  const [isInputOverridePanelOpen, setIsInputOverridePanelOpen] = useState<boolean>(true);
+  // Test & Debug input state & test inputs modal toggle
+  const [testInputPayload, setTestInputPayload] = useState<Record<string, any>>(() =>
+    buildInitialInputPayload(matrix)
+  );
+  const [isTestInputsModalOpen, setIsTestInputsModalOpen] = useState<boolean>(true);
+
+  // Ensure new matrix inputs are reflected in test input payload state
+  useEffect(() => {
+    if (matrix?.inputs) {
+      setTestInputPayload((prev) => {
+        const updated = { ...prev };
+        matrix.inputs?.forEach((inp) => {
+          if (updated[inp.key] === undefined) {
+            updated[inp.key] = inp.defaultValue !== undefined ? inp.defaultValue : '';
+          }
+        });
+        return updated;
+      });
+    }
+  }, [matrix?.inputs]);
 
   // Show/Hide Dependency Flows setting state
   const [showFlows, setShowFlows] = useState<boolean>(() => {
@@ -838,8 +856,8 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
         onOpenValidation={() => setIsValidating(true)}
         onExportJson={handleExportJson}
         onUpdateInputs={handleUpdateInputs}
-        onToggleInputOverridePanel={() => setIsInputOverridePanelOpen((prev) => !prev)}
-        isInputOverridePanelOpen={isInputOverridePanelOpen}
+        onToggleTestInputsModal={() => setIsTestInputsModalOpen((prev) => !prev)}
+        isTestInputsModalOpen={isTestInputsModalOpen}
         showFlows={showFlows}
         onToggleFlows={handleToggleFlows}
       />
@@ -879,21 +897,21 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
             />
           )}
         </div>
-
-        {/* Input Override Side Panel on Test & Debug Tab */}
-        {activeTab === 'test' && (
-          <TestInputOverridePanel
-            matrix={matrix}
-            inputPayload={testInputPayload}
-            onUpdateInputPayload={setTestInputPayload}
-            onRunExecution={handleStartExecution}
-            isExecuting={isExecuting}
-            executionResult={executionResult}
-            isOpen={isInputOverridePanelOpen}
-            onToggleOpen={() => setIsInputOverridePanelOpen((prev) => !prev)}
-          />
-        )}
       </div>
+
+      {/* Floating Draggable & Resizable Test Inputs Modal */}
+      {activeTab === 'test' && (
+        <TestInputsModal
+          isOpen={isTestInputsModalOpen}
+          onClose={() => setIsTestInputsModalOpen(false)}
+          matrix={matrix}
+          inputPayload={testInputPayload}
+          onUpdateInputPayload={setTestInputPayload}
+          onRunExecution={handleStartExecution}
+          isExecuting={isExecuting}
+          executionResult={executionResult}
+        />
+      )}
 
       {/* 3. Floating Draggable & Resizable Cell Editor Modal */}
       <CellEditorModal

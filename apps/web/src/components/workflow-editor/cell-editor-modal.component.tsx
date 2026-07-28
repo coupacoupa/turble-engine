@@ -25,6 +25,7 @@ import {
   TableRuleMatch,
 } from '@/types/matrix.types';
 import { WorkflowValidationService } from '@/services/workflow-validation.service';
+import { DraggableModal } from '@/components/common/draggable-modal.component';
 
 interface CellEditorModalProps {
   isOpen: boolean;
@@ -78,45 +79,6 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
   const [inputSearchQuery, setInputSearchQuery] = useState('');
   const [showInputDropdown, setShowInputDropdown] = useState(false);
   const [outputInputText, setOutputInputText] = useState('');
-
-  // Window geometry state
-  const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [size, setSize] = useState<{ width: number; height: number }>({
-    width: DEFAULT_WIDTH,
-    height: DEFAULT_HEIGHT,
-  });
-  const [isDragging, setIsDragging] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
-
-  const dragRef = useRef<{ startX: number; startY: number; posX: number; posY: number }>({
-    startX: 0,
-    startY: 0,
-    posX: 0,
-    posY: 0,
-  });
-
-  const resizeRef = useRef<{ startX: number; startY: number; startWidth: number; startHeight: number }>({
-    startX: 0,
-    startY: 0,
-    startWidth: DEFAULT_WIDTH,
-    startHeight: DEFAULT_HEIGHT,
-  });
-
-  // Calculate centered position & larger default size
-  const resetPosition = useCallback(() => {
-    const targetWidth = Math.min(DEFAULT_WIDTH, Math.max(MIN_WIDTH, window.innerWidth - 60));
-    const targetHeight = Math.min(DEFAULT_HEIGHT, Math.max(MIN_HEIGHT, window.innerHeight - 60));
-    const defaultX = Math.max(20, Math.round((window.innerWidth - targetWidth) / 2));
-    const defaultY = Math.max(20, Math.round((window.innerHeight - targetHeight) / 2));
-    setPosition({ x: defaultX, y: defaultY });
-    setSize({ width: targetWidth, height: targetHeight });
-  }, []);
-
-  useEffect(() => {
-    if (isOpen && position.x === 0 && position.y === 0) {
-      resetPosition();
-    }
-  }, [isOpen, position.x, position.y, resetPosition]);
 
   // Normalize cell actions when modal opens or selection changes
   useEffect(() => {
@@ -261,63 +223,6 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
       (opt) => !activeInputs.includes(opt.key) && (opt.key.toLowerCase().includes(query) || opt.source.toLowerCase().includes(query)),
     );
   }, [availableInputOptions, activeAction?.inputs, inputSearchQuery]);
-
-  // Drag Handlers
-  const handleDragMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if ((e.target as HTMLElement).closest('button, input, select, textarea')) return;
-    e.preventDefault();
-    setIsDragging(true);
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      posX: position.x,
-      posY: position.y,
-    };
-  };
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (isDragging) {
-        const dx = e.clientX - dragRef.current.startX;
-        const dy = e.clientY - dragRef.current.startY;
-        const newX = Math.min(Math.max(10, dragRef.current.posX + dx), window.innerWidth - size.width - 10);
-        const newY = Math.min(Math.max(10, dragRef.current.posY + dy), window.innerHeight - 80);
-        setPosition({ x: newX, y: newY });
-      } else if (isResizing) {
-        const dx = e.clientX - resizeRef.current.startX;
-        const dy = e.clientY - resizeRef.current.startY;
-        const newWidth = Math.min(Math.max(MIN_WIDTH, resizeRef.current.startWidth + dx), window.innerWidth - position.x - 20);
-        const newHeight = Math.min(Math.max(MIN_HEIGHT, resizeRef.current.startHeight + dy), window.innerHeight - position.y - 20);
-        setSize({ width: newWidth, height: newHeight });
-      }
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-      setIsResizing(false);
-    };
-
-    if (isDragging || isResizing) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-    }
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, isResizing, position.x, position.y, size.width]);
-
-  const handleResizeMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsResizing(true);
-    resizeRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      startWidth: size.width,
-      startHeight: size.height,
-    };
-  };
 
   if (!isOpen || !row || !column) return null;
 
@@ -605,46 +510,28 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
   const rulesList = activeAction?.tableRuleConfig?.rules || [];
 
   return (
-    <div
-      style={{
-        left: `${position.x}px`,
-        top: `${position.y}px`,
-        width: `${size.width}px`,
-        height: `${size.height}px`,
-      }}
-      className={`fixed z-50 bg-white border border-slate-300 rounded-xl shadow-2xl flex flex-col font-sans text-slate-900 transition-shadow duration-150 ${
-        isDragging ? 'shadow-emerald-900/20 ring-2 ring-emerald-500/30' : ''
-      }`}
-    >
-      {/* Header Bar (Draggable - Sleek, Thin, Light Theme) */}
-      <div
-        onMouseDown={handleDragMouseDown}
-        className="px-3.5 py-2 bg-slate-100/95 border-b border-slate-200 text-slate-800 rounded-t-xl flex items-center justify-between font-mono cursor-grab active:cursor-grabbing select-none"
-      >
-        <div className="flex items-center space-x-2 min-w-0">
-          <Move className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-          <div className="truncate flex items-center space-x-2">
-            <h3 className="font-bold text-xs text-slate-900 truncate">Configure Cell Coordinate</h3>
-            <span className="text-[10px] bg-slate-100 text-slate-700 border border-slate-200 px-1.5 py-0.2 rounded font-mono font-semibold truncate">
-              {row.label} × {column.label}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-1 shrink-0 ml-2">
+    <DraggableModal
+      isOpen={isOpen && !!row && !!column}
+      onClose={onClose}
+      title="Configure Cell Coordinate"
+      badge={row && column ? `${row.label} × ${column.label}` : undefined}
+      defaultWidth={DEFAULT_WIDTH}
+      defaultHeight={DEFAULT_HEIGHT}
+      minWidth={MIN_WIDTH}
+      minHeight={MIN_HEIGHT}
+      footer={
+        <div className="flex items-center justify-end">
           <button
             type="button"
-            onClick={onClose}
-            title="Close Editor"
-            className="p-1 rounded-md text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+            onClick={handleSave}
+            className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs flex items-center space-x-1.5 shadow-sm cursor-pointer transition-colors"
           >
-            <X className="h-3.5 w-3.5" />
+            <Save className="h-3.5 w-3.5" />
+            <span>Save Cell Config</span>
           </button>
         </div>
-      </div>
-
-      {/* Main Content Body */}
-      <>
+      }
+    >
           <div className="p-4 overflow-y-auto flex-1 space-y-4 text-xs bg-slate-50/50">
             {/* 1. Cell Actions Header & Dropdown Selector */}
             <div className="bg-white p-3.5 border border-slate-200 rounded-xl shadow-2xs space-y-3">
@@ -1165,6 +1052,8 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
                 </div>
               </div>
             )}
+          </>
+        )}
 
             {/* 4. Sub-Workflow Configurations (for workflow rows) */}
             {!isStandardRow && (
@@ -1222,33 +1111,7 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
                 </div>
               </div>
             )}
-          </>
-        )}
-      </div>
-
-          {/* Footer Bar */}
-          <div className="px-5 py-3 bg-slate-100 border-t border-slate-200 rounded-b-xl flex items-center justify-end shrink-0 relative">
-            <button
-              type="button"
-              onClick={handleSave}
-              className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs flex items-center space-x-1.5 shadow-sm cursor-pointer transition-colors"
-            >
-              <Save className="h-3.5 w-3.5" />
-              <span>Save Cell Config</span>
-            </button>
-
-            {/* Resize Grip Handle at bottom-right corner */}
-            <div
-              onMouseDown={handleResizeMouseDown}
-              className="absolute bottom-1 right-1 w-4 h-4 cursor-se-resize flex items-center justify-center opacity-40 hover:opacity-100 text-slate-600"
-              title="Drag to resize window"
-            >
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 1L1 9M9 5L5 9M9 9L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </div>
           </div>
-        </>
-    </div>
+    </DraggableModal>
   );
 };
