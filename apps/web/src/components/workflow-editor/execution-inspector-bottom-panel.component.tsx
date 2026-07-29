@@ -192,7 +192,8 @@ export const ExecutionInspectorBottomPanel: React.FC<ExecutionInspectorBottomPan
     updateActiveTestCase((tc) => ({
       ...tc,
       executionResult: res,
-      currentStepIndex: 0,
+      // Land on the final step by default: the completed run with all outputs
+      currentStepIndex: Math.max(0, (res.eventLog?.stepRecords?.length ?? 1) - 1),
     }));
     setActiveLeftTab('steps');
   };

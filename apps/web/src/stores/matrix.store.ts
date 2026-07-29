@@ -53,7 +53,7 @@ export const INITIAL_WORKFLOWS: MatrixSchema[] = [
         colId: 'col_underwrite',
         action: 'expression',
         expressionConfig: {
-          expression: "payload.riskResult === 'PASS_SCORECARD' ? 'APPROVED' : 'DECLINED'",
+          expression: "riskResult == 'PASS_SCORECARD' ? 'APPROVED' : 'DECLINED'",
           outputVariable: 'approvalStatus',
         },
       },

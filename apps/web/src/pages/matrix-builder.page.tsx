@@ -704,7 +704,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
     try {
       const res = await MatrixEvaluatorConnectService.executeMatrix(matrix, inputPayload);
       setExecutionResult(res);
-      setCurrentStepIndex(0);
+      setCurrentStepIndex(Math.max(0, (res.eventLog?.stepRecords?.length ?? 1) - 1));
       setIsInspectorModalOpen(true);
       return res;
     } catch (err) {

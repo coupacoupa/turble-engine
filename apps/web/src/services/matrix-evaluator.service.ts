@@ -6,20 +6,14 @@ import {
   type ExecuteMatrixResponse,
   ExecuteMatrixRequestSchema,
 } from '@repo/proto';
-import type { MatrixSchema, ReplayEventLog, StepEvaluationRecord, CellResult, CellActionType } from '@/types/matrix.types';
-import { LocalMatrixEvaluatorService } from '@/services/local-matrix-evaluator.service';
+import { evaluateMatrix, type MatrixExecutionResult } from '@repo/engine';
+import type { MatrixSchema, StepEvaluationRecord, CellResult, CellActionType } from '@/types/matrix.types';
+
+/** Result shape consumed by the frontend time-travel debugger & execution inspector */
+export type { MatrixExecutionResult };
 
 /** Singleton Connect RPC client instance for MatrixEvaluatorService */
 export const matrixEvaluatorClient = createClient(MatrixEvaluatorService, connectTransport);
-
-/** Result shape consumed by the frontend time-travel debugger & execution inspector */
-export interface MatrixExecutionResult {
-  executionId: string;
-  matrixId: string;
-  eventLog: ReplayEventLog;
-  finalPayload: Record<string, any>;
-  hasErrors: boolean;
-}
 
 /** Map protobuf CellActionType enum to local string union */
 function mapCellAction(protoAction: number): CellActionType {
@@ -84,27 +78,20 @@ function mapProtoResponseToResult(res: ExecuteMatrixResponse): MatrixExecutionRe
 }
 
 export class MatrixEvaluatorConnectService {
-  /** Execute matrix via local strict Column-by-Column, Row-by-Row engine with RPC fallback */
+  /**
+   * Execute a matrix. When the full schema is available it runs in-browser on
+   * the shared @repo/engine (compile → execute → event log → legacy
+   * projection) — the same engine the backend uses, so there is no divergent
+   * fallback. The RPC path remains for executions referenced by id only.
+   */
   static async executeMatrix(matrix: MatrixSchema | string, initialPayload: Record<string, any>): Promise<MatrixExecutionResult> {
-    if (typeof matrix !== 'string' && matrix.id) {
-      try {
-        const response = await matrixEvaluatorClient.executeMatrix(
-          create(ExecuteMatrixRequestSchema, {
-            matrixId: matrix.id,
-            initialPayloadJson: JSON.stringify(initialPayload),
-          }),
-        );
-        return mapProtoResponseToResult(response);
-      } catch (err) {
-        // Fallback to local evaluation engine ensuring strict Column-by-Column, Row-by-Row ordering
-        return LocalMatrixEvaluatorService.evaluateMatrix(matrix, initialPayload);
-      }
+    if (typeof matrix !== 'string') {
+      return evaluateMatrix(matrix, initialPayload);
     }
 
-    const matrixId = typeof matrix === 'string' ? matrix : matrix.id;
     const response = await matrixEvaluatorClient.executeMatrix(
       create(ExecuteMatrixRequestSchema, {
-        matrixId,
+        matrixId: matrix,
         initialPayloadJson: JSON.stringify(initialPayload),
       }),
     );

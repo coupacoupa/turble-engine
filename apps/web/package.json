@@ -16,6 +16,7 @@
     "@bufbuild/protovalidate": "^1.2.0",
     "@connectrpc/connect": "^2.1.2",
     "@connectrpc/connect-web": "^2.1.2",
+    "@repo/engine": "workspace:*",
     "@repo/proto": "workspace:*",
     "@repo/ui": "workspace:*",
     "class-variance-authority": "^0.7.1",

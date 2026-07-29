@@ -1,0 +1,303 @@
+{
+  "executionId": "exec_1",
+  "matrixId": "wf_credit_origination",
+  "events": [
+    {
+      "type": "execution_started",
+      "spanId": "span_1",
+      "executionId": "exec_1",
+      "matrixId": "wf_credit_origination",
+      "planHash": "ea922a83",
+      "wallStartMs": 0,
+      "input": {
+        "creditScore": 650,
+        "dti": 0.5,
+        "applicantEmail": "applicant@example.com",
+        "token": "valid"
+      },
+      "seq": 0,
+      "tUs": 10
+    },
+    {
+      "type": "column_started",
+      "spanId": "span_2",
+      "parentSpanId": "span_1",
+      "colId": "col_ingest",
+      "colIdx": 0,
+      "colLabel": "1. Application Ingest",
+      "seq": 1,
+      "tUs": 20
+    },
+    {
+      "type": "cell_started",
+      "spanId": "span_3",
+      "parentSpanId": "span_2",
+      "cellId": "cell_auth_ingest",
+      "rowId": "row_auth",
+      "colId": "col_ingest",
+      "seq": 2,
+      "tUs": 40
+    },
+    {
+      "type": "action_started",
+      "spanId": "span_4",
+      "parentSpanId": "span_3",
+      "actionId": "act_cell_auth_ingest",
+      "actionType": "table_rule",
+      "actionIdx": 0,
+      "seq": 3,
+      "tUs": 50
+    },
+    {
+      "type": "rule_evaluated",
+      "spanId": "span_4",
+      "parentSpanId": "span_3",
+      "ruleIdx": 0,
+      "matched": true,
+      "conditionResults": [
+        {
+          "key": "token",
+          "expected": "== valid",
+          "actual": "valid",
+          "pass": true
+        }
+      ],
+      "seq": 4,
+      "tUs": 60
+    },
+    {
+      "type": "payload_mutated",
+      "spanId": "span_4",
+      "parentSpanId": "span_3",
+      "key": "isAuthorized",
+      "before": null,
+      "after": true,
+      "source": {
+        "cellId": "cell_auth_ingest",
+        "actionId": "act_cell_auth_ingest",
+        "ruleIdx": 0
+      },
+      "seq": 5,
+      "tUs": 70
+    },
+    {
+      "type": "action_completed",
+      "spanId": "span_4",
+      "parentSpanId": "span_3",
+      "actionId": "act_cell_auth_ingest",
+      "seq": 6,
+      "tUs": 80
+    },
+    {
+      "type": "cell_completed",
+      "spanId": "span_3",
+      "parentSpanId": "span_2",
+      "cellId": "cell_auth_ingest",
+      "status": "success",
+      "latencyUs": 60,
+      "seq": 7,
+      "tUs": 100
+    },
+    {
+      "type": "column_completed",
+      "spanId": "span_2",
+      "parentSpanId": "span_1",
+      "colId": "col_ingest",
+      "seq": 8,
+      "tUs": 110
+    },
+    {
+      "type": "column_started",
+      "spanId": "span_5",
+      "parentSpanId": "span_1",
+      "colId": "col_audit",
+      "colIdx": 1,
+      "colLabel": "2. Bureau & DTI Audit",
+      "seq": 9,
+      "tUs": 120
+    },
+    {
+      "type": "cell_started",
+      "spanId": "span_6",
+      "parentSpanId": "span_5",
+      "cellId": "cell_bureau_audit",
+      "rowId": "row_bureau",
+      "colId": "col_audit",
+      "seq": 10,
+      "tUs": 140
+    },
+    {
+      "type": "action_started",
+      "spanId": "span_7",
+      "parentSpanId": "span_6",
+      "actionId": "act_cell_bureau_audit",
+      "actionType": "table_rule",
+      "actionIdx": 0,
+      "seq": 11,
+      "tUs": 150
+    },
+    {
+      "type": "rule_evaluated",
+      "spanId": "span_7",
+      "parentSpanId": "span_6",
+      "ruleIdx": 0,
+      "matched": false,
+      "conditionResults": [
+        {
+          "key": "creditScore",
+          "expected": ">= 700",
+          "actual": 650,
+          "pass": false
+        },
+        {
+          "key": "dti",
+          "expected": "<= 0.35",
+          "actual": 0.5,
+          "pass": false
+        }
+      ],
+      "seq": 12,
+      "tUs": 160
+    },
+    {
+      "type": "action_completed",
+      "spanId": "span_7",
+      "parentSpanId": "span_6",
+      "actionId": "act_cell_bureau_audit",
+      "seq": 13,
+      "tUs": 170
+    },
+    {
+      "type": "cell_completed",
+      "spanId": "span_6",
+      "parentSpanId": "span_5",
+      "cellId": "cell_bureau_audit",
+      "status": "success",
+      "latencyUs": 50,
+      "seq": 14,
+      "tUs": 190
+    },
+    {
+      "type": "column_completed",
+      "spanId": "span_5",
+      "parentSpanId": "span_1",
+      "colId": "col_audit",
+      "seq": 15,
+      "tUs": 200
+    },
+    {
+      "type": "column_started",
+      "spanId": "span_8",
+      "parentSpanId": "span_1",
+      "colId": "col_underwrite",
+      "colIdx": 2,
+      "colLabel": "3. Underwriting Decision",
+      "seq": 16,
+      "tUs": 210
+    },
+    {
+      "type": "cell_started",
+      "spanId": "span_9",
+      "parentSpanId": "span_8",
+      "cellId": "cell_bureau_underwrite",
+      "rowId": "row_bureau",
+      "colId": "col_underwrite",
+      "seq": 17,
+      "tUs": 230
+    },
+    {
+      "type": "action_started",
+      "spanId": "span_10",
+      "parentSpanId": "span_9",
+      "actionId": "act_cell_bureau_underwrite",
+      "actionType": "expression",
+      "actionIdx": 0,
+      "seq": 18,
+      "tUs": 240
+    },
+    {
+      "type": "payload_mutated",
+      "spanId": "span_10",
+      "parentSpanId": "span_9",
+      "key": "approvalStatus",
+      "before": null,
+      "after": "DECLINED",
+      "source": {
+        "cellId": "cell_bureau_underwrite",
+        "actionId": "act_cell_bureau_underwrite"
+      },
+      "seq": 19,
+      "tUs": 250
+    },
+    {
+      "type": "action_completed",
+      "spanId": "span_10",
+      "parentSpanId": "span_9",
+      "actionId": "act_cell_bureau_underwrite",
+      "seq": 20,
+      "tUs": 260
+    },
+    {
+      "type": "cell_completed",
+      "spanId": "span_9",
+      "parentSpanId": "span_8",
+      "cellId": "cell_bureau_underwrite",
+      "status": "success",
+      "latencyUs": 50,
+      "seq": 21,
+      "tUs": 280
+    },
+    {
+      "type": "cell_started",
+      "spanId": "span_11",
+      "parentSpanId": "span_8",
+      "cellId": "cell_notify_underwrite",
+      "rowId": "row_notify",
+      "colId": "col_underwrite",
+      "seq": 22,
+      "tUs": 300
+    },
+    {
+      "type": "action_skipped",
+      "spanId": "span_12",
+      "parentSpanId": "span_11",
+      "actionId": "act_cell_notify_underwrite",
+      "actionType": "trigger_sub_workflow",
+      "reason": "unsupported",
+      "seq": 23,
+      "tUs": 310
+    },
+    {
+      "type": "cell_completed",
+      "spanId": "span_11",
+      "parentSpanId": "span_8",
+      "cellId": "cell_notify_underwrite",
+      "status": "success",
+      "latencyUs": 30,
+      "seq": 24,
+      "tUs": 330
+    },
+    {
+      "type": "column_completed",
+      "spanId": "span_8",
+      "parentSpanId": "span_1",
+      "colId": "col_underwrite",
+      "seq": 25,
+      "tUs": 340
+    },
+    {
+      "type": "execution_completed",
+      "spanId": "span_1",
+      "finalPayload": {
+        "creditScore": 650,
+        "dti": 0.5,
+        "applicantEmail": "applicant@example.com",
+        "token": "valid",
+        "isAuthorized": true,
+        "approvalStatus": "DECLINED"
+      },
+      "seq": 26,
+      "tUs": 350
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   Layers,
@@ -401,8 +402,11 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
         </div>
       </div>
 
-      {/* 1. High-Density Enterprise Input Schema Setup Modal */}
-      {isInputsModalOpen && (
+      {/* 1. High-Density Enterprise Input Schema Setup Modal.
+          Portaled to <body>: the toolbar wrapper is `relative z-sticky`, which
+          creates a stacking context that would trap this z-modal backdrop
+          UNDER the sheet's sticky headers and the docked inspector panel. */}
+      {isInputsModalOpen && createPortal(
         <div className="fixed inset-0 z-modal bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden font-sans flex flex-col max-h-[85vh]">
             {/* Modal Header */}
@@ -657,11 +661,12 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* 2. Workflow Decision Outputs Inspector Modal (Read-only) */}
-      {isOutputsModalOpen && (
+      {/* 2. Workflow Decision Outputs Inspector Modal (Read-only). Portaled for the same stacking-context reason. */}
+      {isOutputsModalOpen && createPortal(
         <div className="fixed inset-0 z-modal bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden font-sans flex flex-col max-h-[85vh]">
             <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
@@ -737,7 +742,8 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
