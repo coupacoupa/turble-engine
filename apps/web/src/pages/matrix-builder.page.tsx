@@ -701,6 +701,11 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({ workflowId
   const handleStartExecution = async (inputPayload: Record<string, any>): Promise<MatrixExecutionResult> => {
     if (!matrix) throw new Error('No matrix loaded');
     setIsExecuting(true);
+    setShowFlows(true);
+    try {
+      localStorage.setItem('turble_show_flows', 'true');
+    } catch {}
+
     try {
       const res = await MatrixEvaluatorConnectService.executeMatrix(matrix, inputPayload);
       setExecutionResult(res);
