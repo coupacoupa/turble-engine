@@ -45,11 +45,18 @@ export type { HostEnvironment } from "./host/host";
 export { executeMatrix, executeMatrixSync } from "./exec/execute";
 export type { ExecuteOptions, CapturePolicy } from "./exec/execute";
 
-// Replay & projections
-export { createReplay, applyEvent } from "./replay/fold";
-export type { Replay } from "./replay/fold";
-export { toLegacyExecutionResult } from "./replay/legacy";
-export type { MatrixExecutionResult } from "./replay/legacy";
+// Execution timeline & projections
+export {
+  createExecutionTimeline,
+  createReplay,
+  applyEvent,
+} from "./timeline/fold";
+export type { ExecutionTimeline, Replay } from "./timeline/fold";
+export {
+  projectExecutionResult,
+  toLegacyExecutionResult,
+} from "./timeline/project";
+export type { MatrixExecutionResult } from "./timeline/project";
 
 // Convenience
 export { evaluateMatrix } from "./api";

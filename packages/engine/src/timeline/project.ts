@@ -9,7 +9,7 @@ import {
 } from "../schema/matrix-schema";
 import { Diagnostic } from "../compile/diagnostics";
 
-/** Result shape consumed by the frontend time-travel debugger & execution inspector. */
+/** Result shape consumed by the frontend step inspector & matrix builder components. */
 export interface MatrixExecutionResult {
   executionId: string;
   matrixId: string;
@@ -21,14 +21,13 @@ export interface MatrixExecutionResult {
 }
 
 /**
- * Project an event log into the legacy per-cell step-record shape the current
- * simulator components consume. One StepEvaluationRecord per executed cell —
- * payload snapshots are materialized here by folding mutation deltas, so the
- * engine itself never clones payloads during execution.
+ * Project an execution log into the per-cell step-record shape the matrix simulator
+ * components consume. One StepEvaluationRecord per executed cell — payload snapshots are
+ * materialized here by folding mutation deltas.
  *
  * Requires a log captured with `capture: 'full'`.
  */
-export function toLegacyExecutionResult(
+export function projectExecutionResult(
   log: ExecutionLog,
 ): MatrixExecutionResult {
   const stepRecords: StepEvaluationRecord[] = [];
@@ -184,3 +183,6 @@ export function toLegacyExecutionResult(
     hasErrors,
   };
 }
+
+/** Alias for backward compatibility */
+export const toLegacyExecutionResult = projectExecutionResult;

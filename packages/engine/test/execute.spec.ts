@@ -4,7 +4,7 @@ import {
   createDeterministicHost,
   executeMatrixSync,
   MatrixSchema,
-  toLegacyExecutionResult,
+  projectExecutionResult,
 } from "../src";
 import {
   approvedInput,
@@ -20,7 +20,7 @@ function runSample(input: Record<string, unknown>) {
 describe("executeMatrixSync", () => {
   it("approves the good applicant end to end", () => {
     const log = runSample(approvedInput);
-    const result = toLegacyExecutionResult(log);
+    const result = projectExecutionResult(log);
 
     expect(result.hasErrors).toBe(false);
     expect(result.finalPayload).toMatchObject({
@@ -33,7 +33,7 @@ describe("executeMatrixSync", () => {
 
   it("declines the weak applicant via the TEL expression", () => {
     const log = runSample(declinedInput);
-    const result = toLegacyExecutionResult(log);
+    const result = projectExecutionResult(log);
 
     expect(result.finalPayload["riskResult"]).toBeUndefined();
     expect(result.finalPayload["approvalStatus"]).toBe("DECLINED");
@@ -163,7 +163,7 @@ describe("execution semantics details", () => {
       {},
       { host: createDeterministicHost() },
     );
-    const result = toLegacyExecutionResult(log);
+    const result = projectExecutionResult(log);
     expect(result.finalPayload).toMatchObject({ tier: "SILVER", bonus: 1 });
   });
 
@@ -198,7 +198,7 @@ describe("execution semantics details", () => {
       {},
       { host: createDeterministicHost() },
     );
-    expect(toLegacyExecutionResult(log).finalPayload["tier"]).toBe("BRONZE");
+    expect(projectExecutionResult(log).finalPayload["tier"]).toBe("BRONZE");
   });
 
   it("disabled cells are skipped with a visible event", () => {
@@ -235,9 +235,9 @@ describe("execution semantics details", () => {
         (e) => e.type === "cell_skipped" && e.reason === "disabled",
       ),
     ).toBe(true);
-    expect(toLegacyExecutionResult(log).finalPayload["hit"]).toBeUndefined();
-    // Skipped cells produce no step record (legacy parity)
-    expect(toLegacyExecutionResult(log).eventLog.stepRecords).toHaveLength(0);
+    expect(projectExecutionResult(log).finalPayload["hit"]).toBeUndefined();
+    // Skipped cells produce no step record
+    expect(projectExecutionResult(log).eventLog.stepRecords).toHaveLength(0);
   });
 
   it("expression runtime errors mark the cell failed but execution continues", () => {
@@ -272,7 +272,7 @@ describe("execution semantics details", () => {
       {},
       { host: createDeterministicHost() },
     );
-    const result = toLegacyExecutionResult(log);
+    const result = projectExecutionResult(log);
     expect(result.hasErrors).toBe(true);
     expect(result.finalPayload["reached"]).toBe(true);
     const failedStep = result.eventLog.stepRecords.find(

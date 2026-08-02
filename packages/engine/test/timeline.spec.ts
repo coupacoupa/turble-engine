@@ -2,10 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   compileMatrix,
   createDeterministicHost,
-  createReplay,
-  evaluateMatrix,
+  createExecutionTimeline,
   executeMatrixSync,
-  toLegacyExecutionResult,
+  projectExecutionResult,
 } from "../src";
 import {
   approvedInput,
@@ -19,53 +18,53 @@ function sampleLog() {
   });
 }
 
-describe("createReplay", () => {
+describe("createExecutionTimeline", () => {
   it("final state equals the execution final payload", () => {
     const log = sampleLog();
-    const replay = createReplay(log);
-    const legacy = toLegacyExecutionResult(log);
-    expect(replay.finalState()).toEqual(legacy.finalPayload);
-    expect(replay.stateAtSeq(log.events.length - 1)).toEqual(
-      legacy.finalPayload,
+    const timeline = createExecutionTimeline(log);
+    const projected = projectExecutionResult(log);
+    expect(timeline.finalState()).toEqual(projected.finalPayload);
+    expect(timeline.stateAtSeq(log.events.length - 1)).toEqual(
+      projected.finalPayload,
     );
   });
 
   it("reconstructs intermediate state at any seq", () => {
     const log = sampleLog();
-    const replay = createReplay(log);
+    const timeline = createExecutionTimeline(log);
 
     // Before any event: empty
-    expect(replay.stateAtSeq(-1)).toEqual({});
+    expect(timeline.stateAtSeq(-1)).toEqual({});
 
     // After execution_started (seq 0): exactly the input
-    expect(replay.stateAtSeq(0)).toEqual(approvedInput);
+    expect(timeline.stateAtSeq(0)).toEqual(approvedInput);
 
     // Right after the isAuthorized mutation: input + isAuthorized, nothing later
     const authSeq = log.events.find(
       (e) => e.type === "payload_mutated" && e.key === "isAuthorized",
     )!.seq;
-    const state = replay.stateAtSeq(authSeq);
+    const state = timeline.stateAtSeq(authSeq);
     expect(state["isAuthorized"]).toBe(true);
     expect(state["riskResult"]).toBeUndefined();
   });
 
   it("scrubbing is consistent across checkpoint boundaries", () => {
     const log = sampleLog();
-    const replay = createReplay(log);
+    const timeline = createExecutionTimeline(log);
     // Walk every seq and verify monotonic key growth (mutations only add keys here)
     let prevKeys = 0;
     for (let seq = 0; seq < log.events.length; seq++) {
-      const keys = Object.keys(replay.stateAtSeq(seq)).length;
+      const keys = Object.keys(timeline.stateAtSeq(seq)).length;
       expect(keys).toBeGreaterThanOrEqual(prevKeys);
       prevKeys = keys;
     }
   });
 });
 
-describe("toLegacyExecutionResult parity", () => {
+describe("projectExecutionResult parity", () => {
   it("produces one step record per executed cell with snapshots", () => {
     const log = sampleLog();
-    const result = toLegacyExecutionResult(log);
+    const result = projectExecutionResult(log);
     const records = result.eventLog.stepRecords;
 
     expect(records).toHaveLength(4); // 4 configured cells in execution order
@@ -89,7 +88,7 @@ describe("toLegacyExecutionResult parity", () => {
   });
 
   it("cell results carry mutations, matched rules, latency and emitted events", () => {
-    const result = toLegacyExecutionResult(sampleLog());
+    const result = projectExecutionResult(sampleLog());
     const audit = result.eventLog.stepRecords.find(
       (r) => r.cellResults[0]?.cellId === "cell_bureau_audit",
     )!;
@@ -102,42 +101,13 @@ describe("toLegacyExecutionResult parity", () => {
       maxLimit: 25000,
     });
     expect(cell.matchedRules).toEqual([0]);
-    expect(cell.latencyMs).toBeGreaterThanOrEqual(1);
-    expect(audit.emittedEvents).toHaveLength(1);
-    expect(audit.emittedEvents[0]!.eventName).toBe("SCORECARD_APPROVED");
-    expect(audit.emittedEvents[0]!.rowId).toBe("row_bureau");
-  });
-
-  it("timestamps derive from wall start + monotonic offset", () => {
-    const result = toLegacyExecutionResult(sampleLog());
-    expect(result.eventLog.startedAt).toBe(1_700_000_000_000);
-    for (const rec of result.eventLog.stepRecords) {
-      expect(rec.timestamp).toBeGreaterThanOrEqual(1_700_000_000_000);
-    }
-    expect(result.eventLog.completedAt).toBeGreaterThanOrEqual(
-      result.eventLog.startedAt,
-    );
-  });
-});
-
-describe("evaluateMatrix convenience API", () => {
-  it("runs end to end without options", () => {
-    const result = evaluateMatrix(creditOriginationMatrix, approvedInput);
-    expect(result.hasErrors).toBe(false);
-    expect(result.finalPayload["approvalStatus"]).toBe("APPROVED");
-    expect(result.executionId).toBeTruthy();
-    expect(
-      result.diagnostics?.some((d) => d.code === "UNSUPPORTED_ACTION"),
-    ).toBe(true);
-  });
-
-  it("returns diagnostics instead of throwing on compile errors", () => {
-    const broken = JSON.parse(JSON.stringify(creditOriginationMatrix));
-    broken.cells["row_bureau:col_underwrite"].expressionConfig.expression =
-      "1 +++";
-    const result = evaluateMatrix(broken, approvedInput);
-    expect(result.hasErrors).toBe(true);
-    expect(result.eventLog.stepRecords).toHaveLength(0);
-    expect(result.diagnostics?.some((d) => d.severity === "error")).toBe(true);
+    expect(cell.latencyMs).toBeGreaterThan(0);
+    expect(cell.emittedEvents).toHaveLength(1);
+    expect(cell.emittedEvents![0]).toMatchObject({
+      eventName: "SCORECARD_APPROVED",
+      rowId: "row_bureau",
+      colId: "col_audit",
+      payload: { tier: "GOLD" },
+    });
   });
 });

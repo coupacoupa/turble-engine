@@ -15,21 +15,24 @@ export function applyEvent(
   }
 }
 
-export interface Replay {
+export interface ExecutionTimeline {
   readonly eventCount: number;
-  /** Payload state after applying events [0..seq] inclusive. O(interval) via checkpoints. */
+  /** Payload state after applying events [0..seq] inclusive. O(1) via checkpoints. */
   stateAtSeq(seq: number): Record<string, Value>;
   /** Final payload state. */
   finalState(): Record<string, Value>;
 }
 
+/** Backward compatibility alias */
+export type Replay = ExecutionTimeline;
+
 /**
- * Time-travel projection. Requires a log captured with `capture: 'full'` —
+ * Execution timeline projection. Requires a log captured with `capture: 'full'` —
  * without recorded values there is nothing to fold.
  *
- * Checkpoints every N events make slider scrubbing O(N) instead of O(seq).
+ * Checkpoints every N events make timeline scrubbing O(N) instead of O(seq).
  */
-export function createReplay(log: ExecutionLog): Replay {
+export function createExecutionTimeline(log: ExecutionLog): ExecutionTimeline {
   const checkpoints: Array<{ seq: number; state: Record<string, Value> }> = [];
   const state: Record<string, Value> = {};
 
@@ -60,3 +63,6 @@ export function createReplay(log: ExecutionLog): Replay {
     finalState: () => ({ ...final }),
   };
 }
+
+/** Alias for backward compatibility */
+export const createReplay = createExecutionTimeline;

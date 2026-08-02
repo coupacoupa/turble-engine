@@ -100,9 +100,9 @@ function mapProtoResponseToResult(
 export class MatrixEvaluatorConnectService {
   /**
    * Execute a matrix. When the full schema is available it runs in-browser on
-   * the shared @repo/engine (compile → execute → event log → legacy
-   * projection) — the same engine the backend uses, so there is no divergent
-   * fallback. The RPC path remains for executions referenced by id only.
+   * the shared @repo/engine (compile → execute → event log → execution timeline
+   * projection) — the same engine the backend uses. The RPC path remains for
+   * executions referenced by id only.
    */
   static async executeMatrix(
     matrix: MatrixSchema | string,

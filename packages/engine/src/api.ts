@@ -2,12 +2,12 @@ import { compileMatrix } from "./compile/compile";
 import { executeMatrixSync, ExecuteOptions } from "./exec/execute";
 import {
   MatrixExecutionResult,
-  toLegacyExecutionResult,
-} from "./replay/legacy";
+  projectExecutionResult,
+} from "./timeline/project";
 import { MatrixSchema } from "./schema/matrix-schema";
 
 /**
- * One-shot convenience: compile + execute + project to the legacy result shape
+ * One-shot convenience: compile + execute + project to the matrix execution result shape
  * the web simulator consumes. Never throws — compile errors come back as a
  * result with `hasErrors: true` and the diagnostics attached.
  */
@@ -35,7 +35,7 @@ export function evaluateMatrix(
   }
 
   const log = executeMatrixSync(plan, input, opts);
-  const result = toLegacyExecutionResult(log);
+  const result = projectExecutionResult(log);
   if (diagnostics.length > 0) result.diagnostics = diagnostics;
   return result;
 }
