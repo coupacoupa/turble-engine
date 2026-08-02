@@ -1,5 +1,5 @@
-import React from 'react';
-import { Layers, Plus, Play, ArrowLeft, Cpu } from 'lucide-react';
+import React from "react";
+import { Layers, Plus, Play, ArrowLeft, Cpu } from "lucide-react";
 
 interface AppHeaderProps {
   activeMatrixName?: string;
@@ -29,15 +29,26 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           </button>
         )}
 
-        <div onClick={onBackToDashboard} className="flex items-center space-x-2.5 cursor-pointer group">
-          <img src="/logo.png" alt="Turble Logo" className="h-7 w-auto object-contain shrink-0 group-hover:scale-105 transition-transform" />
-          <span className="font-bold text-slate-900 tracking-tight text-sm">Turble Engine</span>
+        <div
+          onClick={onBackToDashboard}
+          className="flex items-center space-x-2.5 cursor-pointer group"
+        >
+          <img
+            src="/logo.png"
+            alt="Turble Logo"
+            className="h-7 w-auto object-contain shrink-0 group-hover:scale-105 transition-transform"
+          />
+          <span className="font-bold text-slate-900 tracking-tight text-sm">
+            Turble Engine
+          </span>
         </div>
 
         {activeMatrixName && (
           <div className="hidden sm:flex items-center space-x-2 border-l border-slate-200 pl-4 font-mono">
             <Cpu className="h-3.5 w-3.5 text-emerald-600" />
-            <span className="text-slate-800 font-semibold">{activeMatrixName}</span>
+            <span className="text-slate-800 font-semibold">
+              {activeMatrixName}
+            </span>
             <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded font-bold">
               2D MATRIX
             </span>
@@ -53,7 +64,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center space-x-1.5 shadow-sm transition-colors cursor-pointer disabled:opacity-50"
           >
             <Play className="h-3.5 w-3.5 fill-current" />
-            <span>{isExecuting ? 'Executing...' : 'Run Matrix Engine'}</span>
+            <span>{isExecuting ? "Executing..." : "Run Matrix Engine"}</span>
           </button>
         )}
 

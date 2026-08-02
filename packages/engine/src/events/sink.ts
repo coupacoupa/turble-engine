@@ -1,4 +1,4 @@
-import { ExecutionEvent } from './types';
+import { ExecutionEvent } from "./types";
 
 /**
  * Receives events as they are produced. A collector builds the in-memory log;

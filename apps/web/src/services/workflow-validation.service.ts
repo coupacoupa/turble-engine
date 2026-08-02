@@ -1,5 +1,5 @@
-import { MatrixSchema } from '@/types/matrix.types';
-import { getCellActions } from '@/utils/cell-actions.util';
+import { MatrixSchema } from "@/types/matrix.types";
+import { getCellActions } from "@/utils/cell-actions.util";
 
 export class WorkflowValidationService {
   /**
@@ -14,7 +14,7 @@ export class WorkflowValidationService {
     matrix: MatrixSchema,
     targetRowId: string,
     targetColId: string,
-    actionIndex: number = Infinity
+    actionIndex: number = Infinity,
   ): boolean {
     if (!inputKey || !matrix) return false;
 
@@ -39,7 +39,9 @@ export class WorkflowValidationService {
     if (currentCell) {
       const actions = getCellActions(currentCell);
 
-      const limit = Number.isFinite(actionIndex) ? Math.min(actionIndex, actions.length) : 0;
+      const limit = Number.isFinite(actionIndex)
+        ? Math.min(actionIndex, actions.length)
+        : 0;
       for (let i = 0; i < limit; i++) {
         if ((actions[i]?.outputs || []).includes(inputKey)) {
           return true;
@@ -50,13 +52,16 @@ export class WorkflowValidationService {
     // 3. Check preceding cells in execution order
     let resolved = false;
     Object.values(matrix.cells || {}).forEach((otherCell) => {
-      if (otherCell.rowId === targetRowId && otherCell.colId === targetColId) return;
+      if (otherCell.rowId === targetRowId && otherCell.colId === targetColId)
+        return;
 
       const cOrder = colOrderMap.get(otherCell.colId);
       const rOrder = rowOrderMap.get(otherCell.rowId);
 
       if (cOrder === undefined || rOrder === undefined) return;
-      const isPreceding = cOrder < currColOrder || (cOrder === currColOrder && rOrder < currRowOrder);
+      const isPreceding =
+        cOrder < currColOrder ||
+        (cOrder === currColOrder && rOrder < currRowOrder);
       if (!isPreceding) return;
 
       getCellActions(otherCell).forEach((act) => {
@@ -75,14 +80,18 @@ export class WorkflowValidationService {
   static getUnresolvedCellInputs(
     matrix: MatrixSchema,
     rowId: string,
-    colId: string
+    colId: string,
   ): string[] {
     const cell = matrix.cells[`${rowId}:${colId}`];
     if (!cell) return [];
 
     const actions = getCellActions(cell);
-    const allInputs = Array.from(new Set(actions.flatMap((a) => a.inputs || [])));
-    return allInputs.filter((inpKey) => !this.isInputResolved(inpKey, matrix, rowId, colId));
+    const allInputs = Array.from(
+      new Set(actions.flatMap((a) => a.inputs || [])),
+    );
+    return allInputs.filter(
+      (inpKey) => !this.isInputResolved(inpKey, matrix, rowId, colId),
+    );
   }
 
   /**
@@ -92,7 +101,7 @@ export class WorkflowValidationService {
     outputKey: string,
     matrix: MatrixSchema,
     targetRowId: string,
-    targetColId: string
+    targetColId: string,
   ): Array<{ isWorkflowInput?: boolean; cellKey?: string }> {
     if (!outputKey || !matrix) return [];
 
@@ -100,7 +109,9 @@ export class WorkflowValidationService {
     if (!targetCell) return [];
 
     const targetActions = getCellActions(targetCell);
-    const producesOutput = targetActions.some((a) => (a.outputs || []).includes(outputKey));
+    const producesOutput = targetActions.some((a) =>
+      (a.outputs || []).includes(outputKey),
+    );
     if (!producesOutput) return [];
 
     const sources: Array<{ isWorkflowInput?: boolean; cellKey?: string }> = [];
@@ -123,16 +134,21 @@ export class WorkflowValidationService {
     const currRowOrder = targetRow.order;
 
     Object.values(matrix.cells || {}).forEach((otherCell) => {
-      if (otherCell.rowId === targetRowId && otherCell.colId === targetColId) return;
+      if (otherCell.rowId === targetRowId && otherCell.colId === targetColId)
+        return;
 
       const cOrder = colOrderMap.get(otherCell.colId);
       const rOrder = rowOrderMap.get(otherCell.rowId);
 
       if (cOrder === undefined || rOrder === undefined) return;
-      const isPreceding = cOrder < currColOrder || (cOrder === currColOrder && rOrder < currRowOrder);
+      const isPreceding =
+        cOrder < currColOrder ||
+        (cOrder === currColOrder && rOrder < currRowOrder);
       if (!isPreceding) return;
 
-      const producesKey = getCellActions(otherCell).some((act) => (act.outputs || []).includes(outputKey));
+      const producesKey = getCellActions(otherCell).some((act) =>
+        (act.outputs || []).includes(outputKey),
+      );
       if (producesKey) {
         sources.push({ cellKey: `${otherCell.rowId}:${otherCell.colId}` });
       }
@@ -149,11 +165,18 @@ export class WorkflowValidationService {
     matrix: MatrixSchema,
     targetRowId: string,
     targetColId: string,
-    actionIndex: number = Infinity
+    actionIndex: number = Infinity,
   ): { clashing: boolean; reason?: string } {
-    const sources = this.getAllOutputClashingSources(outputKey, matrix, targetRowId, targetColId);
+    const sources = this.getAllOutputClashingSources(
+      outputKey,
+      matrix,
+      targetRowId,
+      targetColId,
+    );
     if (sources.length > 0) {
-      const srcLabels = sources.map((s) => (s.isWorkflowInput ? 'Workflow Input' : s.cellKey)).join(', ');
+      const srcLabels = sources
+        .map((s) => (s.isWorkflowInput ? "Workflow Input" : s.cellKey))
+        .join(", ");
       return {
         clashing: true,
         reason: `Clashes with output defined in (${srcLabels})`,
@@ -168,13 +191,17 @@ export class WorkflowValidationService {
   static getClashingCellOutputs(
     matrix: MatrixSchema,
     rowId: string,
-    colId: string
+    colId: string,
   ): string[] {
     const cell = matrix.cells[`${rowId}:${colId}`];
     if (!cell) return [];
 
     const actions = getCellActions(cell);
-    const allOutputs = Array.from(new Set(actions.flatMap((a) => a.outputs || [])));
-    return allOutputs.filter((outKey) => this.isOutputClashing(outKey, matrix, rowId, colId).clashing);
+    const allOutputs = Array.from(
+      new Set(actions.flatMap((a) => a.outputs || [])),
+    );
+    return allOutputs.filter(
+      (outKey) => this.isOutputClashing(outKey, matrix, rowId, colId).clashing,
+    );
   }
 }

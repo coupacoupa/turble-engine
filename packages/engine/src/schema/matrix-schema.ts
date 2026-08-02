@@ -1,7 +1,15 @@
-export type RowType = 'standard' | 'workflow';
+export type RowType = "standard" | "workflow";
 
-export type PlainCellAction = 'table_rule' | 'expression' | 'api_call' | 'event_emitter' | 'passthrough';
-export type WorkflowCellAction = 'trigger_sub_workflow' | 'override_sub_workflow' | 'skip_sub_workflow';
+export type PlainCellAction =
+  | "table_rule"
+  | "expression"
+  | "api_call"
+  | "event_emitter"
+  | "passthrough";
+export type WorkflowCellAction =
+  | "trigger_sub_workflow"
+  | "override_sub_workflow"
+  | "skip_sub_workflow";
 
 export type CellActionType = PlainCellAction | WorkflowCellAction;
 
@@ -17,7 +25,7 @@ export interface TableRuleMatch {
 
 export interface TableRuleConfig {
   rules: TableRuleMatch[];
-  hitPolicy?: 'first_match' | 'all_matches';
+  hitPolicy?: "first_match" | "all_matches";
 }
 
 export interface ExpressionConfig {
@@ -27,7 +35,7 @@ export interface ExpressionConfig {
 
 export interface ApiCallConfig {
   endpoint: string;
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method: "GET" | "POST" | "PUT" | "DELETE";
   headers?: Record<string, string>;
   bodyMapping?: Record<string, string>;
   responseMapping?: Record<string, string>;
@@ -89,7 +97,12 @@ export interface DomainRowSchema {
   isInterceptor?: boolean;
 }
 
-export type InputValueType = 'string' | 'number' | 'boolean' | 'object' | 'array';
+export type InputValueType =
+  | "string"
+  | "number"
+  | "boolean"
+  | "object"
+  | "array";
 
 export interface WorkflowInputField {
   id: string;
@@ -132,7 +145,7 @@ export interface CellResult {
   rowId: string;
   colId: string;
   action: CellActionType;
-  status: 'success' | 'fail' | 'skipped';
+  status: "success" | "fail" | "skipped";
   mutatedPayload: Record<string, any>;
   emittedEvents?: EmittedCellEvent[];
   matchedRules?: number[];
@@ -159,7 +172,7 @@ export interface ReplayEventLog {
   stepRecords: StepEvaluationRecord[];
 }
 
-export type TokenStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type TokenStatus = "pending" | "running" | "completed" | "failed";
 
 export interface ExecutionToken {
   id: string;

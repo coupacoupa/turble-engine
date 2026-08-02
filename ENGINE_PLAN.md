@@ -28,9 +28,9 @@ A **cell** is a coordinate `rowId:colId` holding an **ordered list of actions**
   `skip_sub_workflow` with `inputMapping` / `outputMapping`.
 - **Explicit dataflow contract**: every action declares `inputs[]` and `outputs[]`.
   The editor + `WorkflowValidationService` enforce:
-  - an input must be *resolved* — defined in `matrix.inputs`, or produced by a preceding
+  - an input must be _resolved_ — defined in `matrix.inputs`, or produced by a preceding
     action in the same cell, or by a preceding cell in execution order;
-  - an output must not *clash* — shadow a workflow input or a preceding cell's output.
+  - an output must not _clash_ — shadow a workflow input or a preceding cell's output.
 - **Table rule shape**: `conditions: Record<key, conditionString>` (`>= 700`, `== valid`,
   empty = wildcard), `mutations: Record<key, value>` (strings coerced to bool/number),
   optional `emitEvent`. Hit policy `first_match` implemented; `all_matches` declared but
@@ -52,28 +52,29 @@ The simulator is entirely **snapshot-driven** off `MatrixExecutionResult`:
 
 ### 1.3 Gaps the engine must close
 
-| Gap | Where |
-|---|---|
-| Only `table_rule` actually executes; `expression`, `api_call`, `event_emitter`, sub-workflows are dead paths | `local-matrix-evaluator.service.ts` |
-| `emitEvent` on rules is never emitted (`emittedEvents` always `[]`) | local evaluator |
-| Expression config stores **raw JS** (`payload.riskResult === '...' ? ...`) — unevaluatable safely, unportable to Rust | seed data / types |
-| Condition strings re-parsed ad hoc on every rule, every run | `evaluateCondition()` |
-| Full payload cloned twice per cell → O(cells × payload) memory & GC pressure | local evaluator |
-| "Step" is named per-column (`colLabel`, `StepEvaluationRecord`) but recorded per-cell — granularity is muddled | types + evaluator |
+| Gap                                                                                                                    | Where                                                        |
+| ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Only `table_rule` actually executes; `expression`, `api_call`, `event_emitter`, sub-workflows are dead paths           | `local-matrix-evaluator.service.ts`                          |
+| `emitEvent` on rules is never emitted (`emittedEvents` always `[]`)                                                    | local evaluator                                              |
+| Expression config stores **raw JS** (`payload.riskResult === '...' ? ...`) — unevaluatable safely, unportable to Rust  | seed data / types                                            |
+| Condition strings re-parsed ad hoc on every rule, every run                                                            | `evaluateCondition()`                                        |
+| Full payload cloned twice per cell → O(cells × payload) memory & GC pressure                                           | local evaluator                                              |
+| "Step" is named per-column (`colLabel`, `StepEvaluationRecord`) but recorded per-cell — granularity is muddled         | types + evaluator                                            |
 | Backend handler is a hardcoded stub; client silently falls back to the (different) local engine — two divergent truths | `matrix-evaluator.handler.ts`, `matrix-evaluator.service.ts` |
-| Validation logic (input resolution / output clash) lives only in the frontend; engine doesn't enforce it | `workflow-validation.service.ts` |
-| No error semantics: everything is `status: 'success'`, `hasErrors: false` hardcoded | everywhere |
+| Validation logic (input resolution / output clash) lives only in the frontend; engine doesn't enforce it               | `workflow-validation.service.ts`                             |
+| No error semantics: everything is `status: 'success'`, `hasErrors: false` hardcoded                                    | everywhere                                                   |
 
 ---
 
 ## 2. Goals / non-goals
 
 **Goals**
+
 1. **One engine, everywhere**: a pure TS package (`packages/engine`) with zero runtime deps,
    running identically in the browser (simulator) and Node (backend RPC). Kills the
    local-vs-backend divergence.
 2. **Fast**: compile-once / execute-many, no per-step deep clones, pre-parsed conditions.
-3. **Observable**: append-only execution event log as the *single source of truth*;
+3. **Observable**: append-only execution event log as the _single source of truth_;
    everything the simulator shows is a projection of it. Span model maps 1:1 to
    OpenTelemetry for production.
 4. **Deterministic & replayable**: same plan + same input + same recorded effects
@@ -82,6 +83,7 @@ The simulator is entirely **snapshot-driven** off `MatrixExecutionResult`:
    not as "whatever the TS code does".
 
 **Non-goals (v1)**
+
 - Persistence/durability of executions (in-memory log; serialization format defined, storage later).
 - Parallel/async column execution (semantics reserved, see §11).
 - A general scripting language in cells.
@@ -130,7 +132,7 @@ This section becomes the normative document the Rust port is written against.
    immediately and are visible to every subsequent action/cell (matches validator's
    "preceding in execution order" definition).
 4. **Value model** (critical for Rust parity): JSON values only — `null | bool | f64 |
-   string | array | object`. No `undefined`, no functions, no Date. Number = IEEE-754 f64.
+string | array | object`. No `undefined`, no functions, no Date. Number = IEEE-754 f64.
    Mutation coercion (`"true"`→true, numeric strings→number) happens at **compile time**
    on literals, not at runtime.
 5. **Hit policies**: `first_match` (default) and `all_matches` (apply every matching rule
@@ -152,7 +154,7 @@ This section becomes the normative document the Rust port is written against.
 
 - Normalize legacy cells (single `action`) → `actions[]` once.
 - Sort columns/rows once; build a **flat array** of `PlannedCell { rowIdx, colIdx,
-  actions: PlannedAction[] }` in execution order — the hot loop iterates one array,
+actions: PlannedAction[] }` in execution order — the hot loop iterates one array,
   no map lookups, no re-sorting.
 - Parse every condition string and expression into an AST **once**; conditions compile to
   closures (TS) / enum tree (Rust).
@@ -192,7 +194,7 @@ Design points:
 
 - **Deltas, not snapshots**: `PayloadMutated` carries `{key, before, after}` only. State at
   any seq = fold of mutations up to seq. This removes the two-full-clones-per-cell cost and
-  gives the time-travel slider *finer* granularity than it has today (per-rule, per-key).
+  gives the time-travel slider _finer_ granularity than it has today (per-rule, per-key).
 - **`RuleEvaluated.conditionResults`** is the observability jackpot for the simulator:
   "why did rule 3 not match?" → show each condition's expected vs actual, pass/fail.
   The current UI can't answer that at all.
@@ -215,11 +217,11 @@ Design points:
 
 ```ts
 interface HostEnvironment {
-  now(): number;                 // monotonic µs
-  wallClock(): number;           // epoch ms, ExecutionStarted only
-  newId(scope: string): string;  // seeded, deterministic in tests
-  http(req: HttpEffectRequest): Promise<HttpEffectResult>;   // api_call
-  emit(event: EmittedEvent): void;                            // event_emitter (side channel)
+  now(): number; // monotonic µs
+  wallClock(): number; // epoch ms, ExecutionStarted only
+  newId(scope: string): string; // seeded, deterministic in tests
+  http(req: HttpEffectRequest): Promise<HttpEffectResult>; // api_call
+  emit(event: EmittedEvent): void; // event_emitter (side channel)
 }
 ```
 
@@ -237,7 +239,7 @@ interface HostEnvironment {
 ## 8. Expression & condition language ("TEL")
 
 Current expressions are raw JS strings — unsafe to eval and impossible to port. Replace
-with one tiny deterministic language used for *both* rule conditions and `expression`
+with one tiny deterministic language used for _both_ rule conditions and `expression`
 actions, specified with a grammar + fixture suite:
 
 - Literals: numbers, strings, booleans, null. Identifiers resolve to payload keys.
@@ -271,6 +273,7 @@ actions, specified with a grammar + fixture suite:
 ## 10. Performance plan
 
 Targets (mid-tier laptop, sync-only matrix):
+
 - compile: 1k-cell matrix < 5 ms;
 - execute: 10k cell-action evaluations < 10 ms, zero allocations per non-matching rule
   beyond its `RuleEvaluated` event;
@@ -288,19 +291,24 @@ gear — not more TS cleverness.
 
 ```ts
 // compile
-const compiled = compileMatrix(matrix, { registry });        // diagnostics | plan
+const compiled = compileMatrix(matrix, { registry }); // diagnostics | plan
 // run
 const log = await executeMatrix(compiled.plan, input, {
-  host, sink, capture: 'full',
+  host,
+  sink,
+  capture: "full",
 });
 // project for the existing UI
 const result: MatrixExecutionResult = toLegacyExecutionResult(log);
 // time travel
 const replay = createReplay(log);
-replay.stateAtSeq(n); replay.eventCount; replay.spans();
+replay.stateAtSeq(n);
+replay.eventCount;
+replay.spans();
 ```
 
 Integration:
+
 - **web**: `matrix-evaluator.service.ts` calls `compileMatrix` + `executeMatrix` directly
   (in-browser) — the RPC becomes optional, not a silently-diverging fallback.
 - **backend**: handler runs the same package; `StreamExecutionSteps` streams real events

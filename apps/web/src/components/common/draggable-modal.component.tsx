@@ -1,5 +1,11 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { Move, X } from 'lucide-react';
+import React, {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+} from "react";
+import { Move, X } from "lucide-react";
 
 export interface DraggableModalProps {
   isOpen: boolean;
@@ -33,15 +39,21 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
   children,
   footer,
   headerExtra,
-  className = '',
+  className = "",
   zIndex = 50,
 }) => {
   // Helper to calculate centered initial coordinates synchronously
   const calculateGeometry = useCallback(() => {
-    const winWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
-    const winHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
-    const targetWidth = Math.min(defaultWidth, Math.max(minWidth, winWidth - 60));
-    const targetHeight = Math.min(defaultHeight, Math.max(minHeight, winHeight - 60));
+    const winWidth = typeof window !== "undefined" ? window.innerWidth : 1200;
+    const winHeight = typeof window !== "undefined" ? window.innerHeight : 800;
+    const targetWidth = Math.min(
+      defaultWidth,
+      Math.max(minWidth, winWidth - 60),
+    );
+    const targetHeight = Math.min(
+      defaultHeight,
+      Math.max(minHeight, winHeight - 60),
+    );
     const defaultX = Math.max(20, Math.round((winWidth - targetWidth) / 2));
     const defaultY = Math.max(20, Math.round((winHeight - targetHeight) / 2));
     return {
@@ -51,19 +63,33 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
   }, [defaultWidth, defaultHeight, minWidth, minHeight]);
 
   // Synchronous state initialization (prevents initial (0,0) flash frame)
-  const [position, setPosition] = useState<{ x: number; y: number }>(() => calculateGeometry().position);
-  const [size, setSize] = useState<{ width: number; height: number }>(() => calculateGeometry().size);
+  const [position, setPosition] = useState<{ x: number; y: number }>(
+    () => calculateGeometry().position,
+  );
+  const [size, setSize] = useState<{ width: number; height: number }>(
+    () => calculateGeometry().size,
+  );
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
 
-  const dragRef = useRef<{ startX: number; startY: number; posX: number; posY: number }>({
+  const dragRef = useRef<{
+    startX: number;
+    startY: number;
+    posX: number;
+    posY: number;
+  }>({
     startX: 0,
     startY: 0,
     posX: 0,
     posY: 0,
   });
 
-  const resizeRef = useRef<{ startX: number; startY: number; startWidth: number; startHeight: number }>({
+  const resizeRef = useRef<{
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+  }>({
     startX: 0,
     startY: 0,
     startWidth: defaultWidth,
@@ -81,7 +107,8 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
 
   // Drag Handlers
   const handleDragMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if ((e.target as HTMLElement).closest('button, input, select, textarea')) return;
+    if ((e.target as HTMLElement).closest("button, input, select, textarea"))
+      return;
     e.preventDefault();
     setIsDragging(true);
     dragRef.current = {
@@ -97,14 +124,26 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
       if (isDragging) {
         const dx = e.clientX - dragRef.current.startX;
         const dy = e.clientY - dragRef.current.startY;
-        const newX = Math.min(Math.max(10, dragRef.current.posX + dx), window.innerWidth - size.width - 10);
-        const newY = Math.min(Math.max(10, dragRef.current.posY + dy), window.innerHeight - 80);
+        const newX = Math.min(
+          Math.max(10, dragRef.current.posX + dx),
+          window.innerWidth - size.width - 10,
+        );
+        const newY = Math.min(
+          Math.max(10, dragRef.current.posY + dy),
+          window.innerHeight - 80,
+        );
         setPosition({ x: newX, y: newY });
       } else if (isResizing) {
         const dx = e.clientX - resizeRef.current.startX;
         const dy = e.clientY - resizeRef.current.startY;
-        const newWidth = Math.min(Math.max(minWidth, resizeRef.current.startWidth + dx), window.innerWidth - position.x - 20);
-        const newHeight = Math.min(Math.max(minHeight, resizeRef.current.startHeight + dy), window.innerHeight - position.y - 20);
+        const newWidth = Math.min(
+          Math.max(minWidth, resizeRef.current.startWidth + dx),
+          window.innerWidth - position.x - 20,
+        );
+        const newHeight = Math.min(
+          Math.max(minHeight, resizeRef.current.startHeight + dy),
+          window.innerHeight - position.y - 20,
+        );
         setSize({ width: newWidth, height: newHeight });
       }
     };
@@ -115,14 +154,22 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
     };
 
     if (isDragging || isResizing) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
     }
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, isResizing, position.x, position.y, size.width, minWidth, minHeight]);
+  }, [
+    isDragging,
+    isResizing,
+    position.x,
+    position.y,
+    size.width,
+    minWidth,
+    minHeight,
+  ]);
 
   const handleResizeMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -148,7 +195,7 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
         zIndex,
       }}
       className={`fixed z-modal bg-white border border-slate-300 rounded-xl shadow-2xl flex flex-col font-sans text-slate-900 transition-shadow duration-150 ${
-        isDragging ? 'shadow-emerald-900/20 ring-2 ring-emerald-500/30' : ''
+        isDragging ? "shadow-emerald-900/20 ring-2 ring-emerald-500/30" : ""
       } ${className}`}
     >
       {/* Header Bar (Draggable - Sleek, Thin, Light Theme) */}
@@ -160,9 +207,13 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
           <Move className="h-3.5 w-3.5 text-slate-400 shrink-0" />
           {icon}
           <div className="truncate flex items-center space-x-2">
-            <h3 className="font-bold text-xs text-slate-900 truncate">{title}</h3>
+            <h3 className="font-bold text-xs text-slate-900 truncate">
+              {title}
+            </h3>
             {subtitle && (
-              <span className="text-[10px] text-slate-500 font-sans truncate">{subtitle}</span>
+              <span className="text-[10px] text-slate-500 font-sans truncate">
+                {subtitle}
+              </span>
             )}
             {badge && (
               <span className="text-[10px] bg-slate-200/70 text-slate-700 border border-slate-300 px-1.5 py-0.2 rounded font-mono font-semibold truncate">
@@ -186,7 +237,9 @@ export const DraggableModal: React.FC<DraggableModalProps> = ({
       </div>
 
       {/* Main Content Body */}
-      <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">{children}</div>
+      <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
+        {children}
+      </div>
 
       {/* Footer Bar if provided */}
       {footer && (

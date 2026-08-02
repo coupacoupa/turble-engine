@@ -1,4 +1,4 @@
-import { Value } from '../lang/value';
+import { Value } from "../lang/value";
 
 /**
  * The append-only execution event log is the single source of truth for an
@@ -31,23 +31,80 @@ export interface MutationSource {
 }
 
 export type ExecutionEvent =
-  | (EventBase & { type: 'execution_started'; executionId: string; matrixId: string; planHash: string; wallStartMs: number; input?: Record<string, Value> })
-  | (EventBase & { type: 'column_started'; colId: string; colIdx: number; colLabel: string })
-  | (EventBase & { type: 'column_completed'; colId: string })
-  | (EventBase & { type: 'cell_started'; cellId: string; rowId: string; colId: string })
-  | (EventBase & { type: 'cell_completed'; cellId: string; status: 'success' | 'fail'; latencyUs: number })
-  | (EventBase & { type: 'cell_skipped'; cellId: string; rowId: string; colId: string; reason: 'disabled' })
-  | (EventBase & { type: 'action_started'; actionId: string; actionType: string; actionIdx: number })
-  | (EventBase & { type: 'action_completed'; actionId: string })
-  | (EventBase & { type: 'action_skipped'; actionId: string; actionType: string; reason: 'disabled' | 'unsupported' })
-  | (EventBase & { type: 'action_failed'; actionId: string; error: string })
-  | (EventBase & { type: 'rule_evaluated'; ruleIdx: number; matched: boolean; conditionResults: ConditionResult[] })
-  | (EventBase & { type: 'payload_mutated'; key: string; before?: Value; after?: Value; source: MutationSource })
-  | (EventBase & { type: 'event_emitted'; eventName: string; payload: Record<string, Value>; source: MutationSource })
-  | (EventBase & { type: 'execution_completed'; finalPayload?: Record<string, Value> })
-  | (EventBase & { type: 'execution_failed'; error: string });
+  | (EventBase & {
+      type: "execution_started";
+      executionId: string;
+      matrixId: string;
+      planHash: string;
+      wallStartMs: number;
+      input?: Record<string, Value>;
+    })
+  | (EventBase & {
+      type: "column_started";
+      colId: string;
+      colIdx: number;
+      colLabel: string;
+    })
+  | (EventBase & { type: "column_completed"; colId: string })
+  | (EventBase & {
+      type: "cell_started";
+      cellId: string;
+      rowId: string;
+      colId: string;
+    })
+  | (EventBase & {
+      type: "cell_completed";
+      cellId: string;
+      status: "success" | "fail";
+      latencyUs: number;
+    })
+  | (EventBase & {
+      type: "cell_skipped";
+      cellId: string;
+      rowId: string;
+      colId: string;
+      reason: "disabled";
+    })
+  | (EventBase & {
+      type: "action_started";
+      actionId: string;
+      actionType: string;
+      actionIdx: number;
+    })
+  | (EventBase & { type: "action_completed"; actionId: string })
+  | (EventBase & {
+      type: "action_skipped";
+      actionId: string;
+      actionType: string;
+      reason: "disabled" | "unsupported";
+    })
+  | (EventBase & { type: "action_failed"; actionId: string; error: string })
+  | (EventBase & {
+      type: "rule_evaluated";
+      ruleIdx: number;
+      matched: boolean;
+      conditionResults: ConditionResult[];
+    })
+  | (EventBase & {
+      type: "payload_mutated";
+      key: string;
+      before?: Value;
+      after?: Value;
+      source: MutationSource;
+    })
+  | (EventBase & {
+      type: "event_emitted";
+      eventName: string;
+      payload: Record<string, Value>;
+      source: MutationSource;
+    })
+  | (EventBase & {
+      type: "execution_completed";
+      finalPayload?: Record<string, Value>;
+    })
+  | (EventBase & { type: "execution_failed"; error: string });
 
-export type ExecutionEventType = ExecutionEvent['type'];
+export type ExecutionEventType = ExecutionEvent["type"];
 
 export interface ExecutionLog {
   executionId: string;

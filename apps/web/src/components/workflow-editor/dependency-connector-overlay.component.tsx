@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from "react";
 
-export type DependencyType = 'incoming' | 'outgoing' | 'clash';
+export type DependencyType = "incoming" | "outgoing" | "clash";
 
 export interface ActiveDependency {
   sourceCellKey?: string; // e.g. "row_bureau:col_scoring"
-  targetCellKey: string;  // e.g. "row_risk:col_underwriting"
+  targetCellKey: string; // e.g. "row_risk:col_underwriting"
   variableName: string;
   isWorkflowInput?: boolean;
   type?: DependencyType;
@@ -43,32 +43,38 @@ const DEP_STYLES: Record<
   }
 > = {
   incoming: {
-    stroke: '#0284c7', // sky-600
-    markerId: 'flow-arrowhead-incoming',
-    badge: 'border-sky-500/80 bg-slate-900 text-sky-200',
-    badgeWithValue: 'border-sky-400 bg-slate-950 text-sky-200 shadow-sky-900/40 ring-1 ring-sky-500/50',
-    dot: 'bg-sky-400',
+    stroke: "#0284c7", // sky-600
+    markerId: "flow-arrowhead-incoming",
+    badge: "border-sky-500/80 bg-slate-900 text-sky-200",
+    badgeWithValue:
+      "border-sky-400 bg-slate-950 text-sky-200 shadow-sky-900/40 ring-1 ring-sky-500/50",
+    dot: "bg-sky-400",
   },
   outgoing: {
-    stroke: '#10b981', // emerald-500
-    markerId: 'flow-arrowhead-outgoing',
-    badge: 'border-emerald-500/80 bg-slate-900 text-emerald-200',
-    badgeWithValue: 'border-emerald-400 bg-slate-950 text-emerald-200 shadow-emerald-900/40 ring-1 ring-emerald-500/50',
-    dot: 'bg-emerald-400',
+    stroke: "#10b981", // emerald-500
+    markerId: "flow-arrowhead-outgoing",
+    badge: "border-emerald-500/80 bg-slate-900 text-emerald-200",
+    badgeWithValue:
+      "border-emerald-400 bg-slate-950 text-emerald-200 shadow-emerald-900/40 ring-1 ring-emerald-500/50",
+    dot: "bg-emerald-400",
   },
   clash: {
-    stroke: '#e11d48', // rose-600
-    markerId: 'flow-arrowhead-clash',
-    badge: 'border-rose-500 bg-rose-950 text-rose-200 shadow-rose-900/30',
-    badgeWithValue: 'border-rose-500 bg-rose-950 text-rose-200 shadow-rose-900/30',
-    dot: 'bg-rose-500',
+    stroke: "#e11d48", // rose-600
+    markerId: "flow-arrowhead-clash",
+    badge: "border-rose-500 bg-rose-950 text-rose-200 shadow-rose-900/30",
+    badgeWithValue:
+      "border-rose-500 bg-rose-950 text-rose-200 shadow-rose-900/30",
+    dot: "bg-rose-500",
   },
 };
 
 const formatRuntimeValue = (value: any): string =>
-  typeof value === 'object' ? JSON.stringify(value) : String(value);
+  typeof value === "object" ? JSON.stringify(value) : String(value);
 
-const resolveCellElement = (container: HTMLElement | null, cellKey: string): HTMLElement | null =>
+const resolveCellElement = (
+  container: HTMLElement | null,
+  cellKey: string,
+): HTMLElement | null =>
   container
     ? container.querySelector(`[data-cell-key="${cellKey}"]`)
     : document.querySelector(`[data-cell-key="${cellKey}"]`);
@@ -80,13 +86,17 @@ const FlowLabelBadge: React.FC<{ path: RenderedPath }> = ({ path }) => {
 
   return (
     <div
-      style={{ left: `${path.midX}px`, top: `${path.midY}px`, transform: 'translate(-50%, -50%)' }}
+      style={{
+        left: `${path.midX}px`,
+        top: `${path.midY}px`,
+        transform: "translate(-50%, -50%)",
+      }}
       className={`absolute px-2 py-0.5 rounded-md font-mono text-[10px] font-bold flex items-center space-x-1.5 shadow-md border animate-in fade-in duration-100 ${
         hasValue ? styles.badgeWithValue : styles.badge
       }`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${styles.dot} shrink-0`} />
-      {path.type === 'clash' ? (
+      {path.type === "clash" ? (
         <span>⚠️ CLASH: {path.variableName}</span>
       ) : (
         <div className="flex items-center space-x-1">
@@ -106,11 +116,9 @@ const FlowLabelBadge: React.FC<{ path: RenderedPath }> = ({ path }) => {
   );
 };
 
-export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProps> = ({
-  activeDependency,
-  dependencies = [],
-  containerRef,
-}) => {
+export const DependencyConnectorOverlay: React.FC<
+  DependencyConnectorOverlayProps
+> = ({ activeDependency, dependencies = [], containerRef }) => {
   const [paths, setPaths] = useState<RenderedPath[]>([]);
 
   const calculatePaths = useCallback(() => {
@@ -124,7 +132,10 @@ export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProp
           d.type === activeDependency.type,
       )
     ) {
-      targetDeps.push({ ...activeDependency, type: activeDependency.type || 'incoming' });
+      targetDeps.push({
+        ...activeDependency,
+        type: activeDependency.type || "incoming",
+      });
     }
 
     if (targetDeps.length === 0) {
@@ -144,10 +155,14 @@ export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProp
         // Workflow-level inputs originate from the Inputs button in the studio toolbar
         sourceEl =
           document.querySelector('[data-workflow-inputs-button="true"]') ||
-          (container ? container.querySelector('[data-corner-header="true"]') : null);
+          (container
+            ? container.querySelector('[data-corner-header="true"]')
+            : null);
       }
 
-      const targetEl = dep.targetCellKey ? resolveCellElement(container, dep.targetCellKey) : null;
+      const targetEl = dep.targetCellKey
+        ? resolveCellElement(container, dep.targetCellKey)
+        : null;
       if (!sourceEl || !targetEl) return;
 
       const sRect = sourceEl.getBoundingClientRect();
@@ -166,9 +181,9 @@ export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProp
       const stagger = ((idx % 5) - 2) * 18;
 
       computedPaths.push({
-        id: `dep_${idx}_${dep.variableName}_${dep.type || 'inc'}_${x1.toFixed(0)}_${y1.toFixed(0)}`,
+        id: `dep_${idx}_${dep.variableName}_${dep.type || "inc"}_${x1.toFixed(0)}_${y1.toFixed(0)}`,
         variableName: dep.variableName,
-        type: dep.type || 'incoming',
+        type: dep.type || "incoming",
         value: dep.value,
         x1,
         y1,
@@ -192,13 +207,16 @@ export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProp
     };
 
     schedule();
-    window.addEventListener('resize', schedule);
-    window.addEventListener('scroll', schedule, { capture: true, passive: true });
+    window.addEventListener("resize", schedule);
+    window.addEventListener("scroll", schedule, {
+      capture: true,
+      passive: true,
+    });
 
     return () => {
       cancelAnimationFrame(frame);
-      window.removeEventListener('resize', schedule);
-      window.removeEventListener('scroll', schedule, { capture: true });
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("scroll", schedule, { capture: true });
     };
   }, [calculatePaths]);
 
@@ -206,7 +224,10 @@ export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProp
 
   return (
     <div className="fixed inset-0 pointer-events-none z-flow-overlay overflow-hidden">
-      <svg className="w-full h-full absolute inset-0 pointer-events-none overflow-visible" aria-hidden="true">
+      <svg
+        className="w-full h-full absolute inset-0 pointer-events-none overflow-visible"
+        aria-hidden="true"
+      >
         <defs>
           {(Object.keys(DEP_STYLES) as DependencyType[]).map((type) => (
             <marker
@@ -219,14 +240,17 @@ export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProp
               markerHeight="6"
               orient="auto-start-reverse"
             >
-              <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill={DEP_STYLES[type].stroke} />
+              <path
+                d="M 0 1.5 L 9 5 L 0 8.5 z"
+                fill={DEP_STYLES[type].stroke}
+              />
             </marker>
           ))}
         </defs>
 
         {paths.map((p) => {
           const styles = DEP_STYLES[p.type];
-          const isClash = p.type === 'clash';
+          const isClash = p.type === "clash";
           const hasValue = p.value !== undefined;
 
           return (
@@ -247,15 +271,29 @@ export const DependencyConnectorOverlay: React.FC<DependencyConnectorOverlayProp
                 fill="none"
                 stroke={styles.stroke}
                 strokeWidth={isClash || hasValue ? 2.2 : 1.8}
-                strokeDasharray={isClash ? '6 4' : '8 5'}
+                strokeDasharray={isClash ? "6 4" : "8 5"}
                 markerEnd={`url(#${styles.markerId})`}
                 strokeLinecap="round"
                 className="animate-dashed-flow"
               />
 
               {/* Source & target endpoint dots */}
-              <circle cx={p.x1} cy={p.y1} r={isClash ? 4 : 3.5} fill={styles.stroke} stroke="#ffffff" strokeWidth="1.2" />
-              <circle cx={p.x2} cy={p.y2} r={isClash ? 4 : 3.5} fill={styles.stroke} stroke="#ffffff" strokeWidth="1.2" />
+              <circle
+                cx={p.x1}
+                cy={p.y1}
+                r={isClash ? 4 : 3.5}
+                fill={styles.stroke}
+                stroke="#ffffff"
+                strokeWidth="1.2"
+              />
+              <circle
+                cx={p.x2}
+                cy={p.y2}
+                r={isClash ? 4 : 3.5}
+                fill={styles.stroke}
+                stroke="#ffffff"
+                strokeWidth="1.2"
+              />
             </g>
           );
         })}

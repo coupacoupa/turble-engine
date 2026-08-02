@@ -15,11 +15,15 @@ export interface HostEnvironment {
 
 /** Real clock + random ids, for interactive use. */
 export function createDefaultHost(): HostEnvironment {
-  const hasPerf = typeof performance !== 'undefined' && typeof performance.now === 'function';
+  const hasPerf =
+    typeof performance !== "undefined" && typeof performance.now === "function";
   return {
-    now: hasPerf ? () => Math.round(performance.now() * 1000) : () => Date.now() * 1000,
+    now: hasPerf
+      ? () => Math.round(performance.now() * 1000)
+      : () => Date.now() * 1000,
     wallClock: () => Date.now(),
-    newId: (scope) => `${scope}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    newId: (scope) =>
+      `${scope}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
   };
 }
 
@@ -27,7 +31,10 @@ export function createDefaultHost(): HostEnvironment {
  * Fully deterministic host: the clock advances a fixed step per call and ids
  * are per-scope counters. Used by tests and conformance fixtures.
  */
-export function createDeterministicHost(opts?: { tickUs?: number; wallStartMs?: number }): HostEnvironment {
+export function createDeterministicHost(opts?: {
+  tickUs?: number;
+  wallStartMs?: number;
+}): HostEnvironment {
   const tick = opts?.tickUs ?? 10;
   const wall = opts?.wallStartMs ?? 0;
   let clock = 0;

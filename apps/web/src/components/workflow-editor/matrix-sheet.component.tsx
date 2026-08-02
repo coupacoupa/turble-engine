@@ -1,9 +1,24 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Trash2, AlertTriangle, GripVertical } from 'lucide-react';
-import { MatrixSchema, DomainRowSchema, StepColumnSchema, RowType, CellSchema } from '@/types/matrix.types';
-import { DependencyConnectorOverlay, ActiveDependency } from '@/components/workflow-editor/dependency-connector-overlay.component';
-import { WorkflowValidationService } from '@/services/workflow-validation.service';
-import { getCellActions } from '@/utils/cell-actions.util';
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  useEffect,
+} from "react";
+import { Trash2, AlertTriangle, GripVertical } from "lucide-react";
+import {
+  MatrixSchema,
+  DomainRowSchema,
+  StepColumnSchema,
+  RowType,
+  CellSchema,
+} from "@/types/matrix.types";
+import {
+  DependencyConnectorOverlay,
+  ActiveDependency,
+} from "@/components/workflow-editor/dependency-connector-overlay.component";
+import { WorkflowValidationService } from "@/services/workflow-validation.service";
+import { getCellActions } from "@/utils/cell-actions.util";
 
 export interface CellExecutionState {
   mutatedPayload?: Record<string, any>;
@@ -21,8 +36,16 @@ interface MatrixSheetProps {
   dependencies?: ActiveDependency[];
   cellExecutionResults?: Record<string, CellExecutionState>;
   showFlows?: boolean;
-  onSelectCell: (row: DomainRowSchema, col: StepColumnSchema, cell?: CellSchema) => void;
-  onDoubleClickCell?: (row: DomainRowSchema, col: StepColumnSchema, cell?: CellSchema) => void;
+  onSelectCell: (
+    row: DomainRowSchema,
+    col: StepColumnSchema,
+    cell?: CellSchema,
+  ) => void;
+  onDoubleClickCell?: (
+    row: DomainRowSchema,
+    col: StepColumnSchema,
+    cell?: CellSchema,
+  ) => void;
   onAddColumn: () => void;
   onAddRow: (type: RowType) => void;
   onToggleInterceptor: (rowId: string) => void;
@@ -36,7 +59,7 @@ interface MatrixSheetProps {
 
 // Utility to convert column index to Excel column letters (0 -> A, 1 -> B, 25 -> Z, 26 -> AA)
 export function getExcelColumnLetter(index: number): string {
-  let letter = '';
+  let letter = "";
   let curr = index;
   while (curr >= 0) {
     letter = String.fromCharCode((curr % 26) + 65) + letter;
@@ -59,22 +82,24 @@ const NO_ISSUES: { unresolvedInputs: string[]; clashingOutputs: string[] } = {
 
 /** Drag-to-resize grip rendered on the edge of a header cell. z values are local to the sticky header's stacking context. */
 const ResizeHandle: React.FC<{
-  orientation: 'col' | 'row';
+  orientation: "col" | "row";
   onMouseDown: (e: React.MouseEvent) => void;
   onDoubleClick: () => void;
 }> = ({ orientation, onMouseDown, onDoubleClick }) => {
-  const isCol = orientation === 'col';
+  const isCol = orientation === "col";
   return (
     <div
       className={`absolute z-20 group/resize hover:bg-emerald-500/40 active:bg-emerald-500/60 transition-colors ${
-        isCol ? 'top-0 right-0 w-1.25 h-full cursor-col-resize' : 'bottom-0 left-0 w-full h-1.25 cursor-row-resize'
+        isCol
+          ? "top-0 right-0 w-1.25 h-full cursor-col-resize"
+          : "bottom-0 left-0 w-full h-1.25 cursor-row-resize"
       }`}
       onMouseDown={onMouseDown}
       onDoubleClick={onDoubleClick}
     >
       <div
         className={`absolute opacity-0 group-hover/resize:opacity-100 group-hover/resize:bg-emerald-500 group-active/resize:bg-emerald-600 transition-opacity ${
-          isCol ? 'top-0 right-0 w-0.5 h-full' : 'bottom-0 left-0 w-full h-0.5'
+          isCol ? "top-0 right-0 w-0.5 h-full" : "bottom-0 left-0 w-full h-0.5"
         }`}
       />
     </div>
@@ -103,16 +128,33 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
   onRenameColumn,
   onRenameRow,
 }) => {
-  const sortedCols = useMemo(() => [...matrix.columns].sort((a, b) => a.order - b.order), [matrix.columns]);
-  const sortedRows = useMemo(() => [...matrix.rows].sort((a, b) => a.order - b.order), [matrix.rows]);
+  const sortedCols = useMemo(
+    () => [...matrix.columns].sort((a, b) => a.order - b.order),
+    [matrix.columns],
+  );
+  const sortedRows = useMemo(
+    () => [...matrix.rows].sort((a, b) => a.order - b.order),
+    [matrix.rows],
+  );
 
   // Validate every cell once per matrix change instead of once per cell per render
   const cellIssues = useMemo(() => {
-    const map: Record<string, { unresolvedInputs: string[]; clashingOutputs: string[] }> = {};
+    const map: Record<
+      string,
+      { unresolvedInputs: string[]; clashingOutputs: string[] }
+    > = {};
     Object.entries(matrix.cells).forEach(([cellKey, cell]) => {
       map[cellKey] = {
-        unresolvedInputs: WorkflowValidationService.getUnresolvedCellInputs(matrix, cell.rowId, cell.colId),
-        clashingOutputs: WorkflowValidationService.getClashingCellOutputs(matrix, cell.rowId, cell.colId),
+        unresolvedInputs: WorkflowValidationService.getUnresolvedCellInputs(
+          matrix,
+          cell.rowId,
+          cell.colId,
+        ),
+        clashingOutputs: WorkflowValidationService.getClashingCellOutputs(
+          matrix,
+          cell.rowId,
+          cell.colId,
+        ),
       };
     });
     return map;
@@ -123,38 +165,46 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
   // Row heights keyed by row.id
   const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
   // Row header column width
-  const [rowHeaderWidth, setRowHeaderWidth] = useState(ROW_HEADER_DEFAULT_WIDTH);
+  const [rowHeaderWidth, setRowHeaderWidth] = useState(
+    ROW_HEADER_DEFAULT_WIDTH,
+  );
 
   // Inline Renaming State for Columns & Rows
   const [editingColId, setEditingColId] = useState<string | null>(null);
-  const [editingColText, setEditingColText] = useState<string>('');
+  const [editingColText, setEditingColText] = useState<string>("");
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
-  const [editingRowText, setEditingRowText] = useState<string>('');
+  const [editingRowText, setEditingRowText] = useState<string>("");
 
-  const handleStartRenameCol = useCallback((colId: string, currentLabel: string) => {
-    setEditingColId(colId);
-    setEditingColText(currentLabel);
-  }, []);
+  const handleStartRenameCol = useCallback(
+    (colId: string, currentLabel: string) => {
+      setEditingColId(colId);
+      setEditingColText(currentLabel);
+    },
+    [],
+  );
 
   const handleSaveColName = useCallback(() => {
     if (editingColId && editingColText.trim()) {
       onRenameColumn?.(editingColId, editingColText.trim());
     }
     setEditingColId(null);
-    setEditingColText('');
+    setEditingColText("");
   }, [editingColId, editingColText, onRenameColumn]);
 
-  const handleStartRenameRow = useCallback((rowId: string, currentLabel: string) => {
-    setEditingRowId(rowId);
-    setEditingRowText(currentLabel);
-  }, []);
+  const handleStartRenameRow = useCallback(
+    (rowId: string, currentLabel: string) => {
+      setEditingRowId(rowId);
+      setEditingRowText(currentLabel);
+    },
+    [],
+  );
 
   const handleSaveRowName = useCallback(() => {
     if (editingRowId && editingRowText.trim()) {
       onRenameRow?.(editingRowId, editingRowText.trim());
     }
     setEditingRowId(null);
-    setEditingRowText('');
+    setEditingRowText("");
   }, [editingRowId, editingRowText, onRenameRow]);
 
   // Drag-and-Drop Reordering state for columns & rows
@@ -164,21 +214,24 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
   const [dragOverRowId, setDragOverRowId] = useState<string | null>(null);
 
   // Column Drag Handlers
-  const handleColDragStart = useCallback((e: React.DragEvent, colId: string) => {
-    e.dataTransfer.setData('text/plain', colId);
-    e.dataTransfer.effectAllowed = 'move';
-    setDraggingColId(colId);
-  }, []);
+  const handleColDragStart = useCallback(
+    (e: React.DragEvent, colId: string) => {
+      e.dataTransfer.setData("text/plain", colId);
+      e.dataTransfer.effectAllowed = "move";
+      setDraggingColId(colId);
+    },
+    [],
+  );
 
   const handleColDragOver = useCallback(
     (e: React.DragEvent, targetColId: string) => {
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
+      e.dataTransfer.dropEffect = "move";
       if (draggingColId && draggingColId !== targetColId) {
         setDragOverColId(targetColId);
       }
     },
-    [draggingColId]
+    [draggingColId],
   );
 
   const handleColDrop = useCallback(
@@ -210,7 +263,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
       setDraggingColId(null);
       onReorderColumns?.(reordered);
     },
-    [draggingColId, sortedCols, onReorderColumns]
+    [draggingColId, sortedCols, onReorderColumns],
   );
 
   const handleColDragEnd = useCallback(() => {
@@ -219,21 +272,24 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
   }, []);
 
   // Row Drag Handlers
-  const handleRowDragStart = useCallback((e: React.DragEvent, rowId: string) => {
-    e.dataTransfer.setData('text/plain', rowId);
-    e.dataTransfer.effectAllowed = 'move';
-    setDraggingRowId(rowId);
-  }, []);
+  const handleRowDragStart = useCallback(
+    (e: React.DragEvent, rowId: string) => {
+      e.dataTransfer.setData("text/plain", rowId);
+      e.dataTransfer.effectAllowed = "move";
+      setDraggingRowId(rowId);
+    },
+    [],
+  );
 
   const handleRowDragOver = useCallback(
     (e: React.DragEvent, targetRowId: string) => {
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
+      e.dataTransfer.dropEffect = "move";
       if (draggingRowId && draggingRowId !== targetRowId) {
         setDragOverRowId(targetRowId);
       }
     },
-    [draggingRowId]
+    [draggingRowId],
   );
 
   const handleRowDrop = useCallback(
@@ -265,7 +321,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
       setDraggingRowId(null);
       onReorderRows?.(reordered);
     },
-    [draggingRowId, sortedRows, onReorderRows]
+    [draggingRowId, sortedRows, onReorderRows],
   );
 
   const handleRowDragEnd = useCallback(() => {
@@ -274,8 +330,12 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
   }, []);
 
   // Track the last-added col/row id to scroll into view
-  const [pendingScrollColId, setPendingScrollColId] = useState<string | null>(null);
-  const [pendingScrollRowId, setPendingScrollRowId] = useState<string | null>(null);
+  const [pendingScrollColId, setPendingScrollColId] = useState<string | null>(
+    null,
+  );
+  const [pendingScrollRowId, setPendingScrollRowId] = useState<string | null>(
+    null,
+  );
 
   // Track previous counts to detect adds
   const prevColCountRef = useRef(matrix.columns.length);
@@ -284,7 +344,9 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
   // Detect when a new column was added and flag it for scroll
   useEffect(() => {
     if (matrix.columns.length > prevColCountRef.current) {
-      const lastCol = [...matrix.columns].sort((a, b) => a.order - b.order).at(-1);
+      const lastCol = [...matrix.columns]
+        .sort((a, b) => a.order - b.order)
+        .at(-1);
       if (lastCol) setPendingScrollColId(lastCol.id);
     }
     prevColCountRef.current = matrix.columns.length;
@@ -302,9 +364,15 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
   // Scroll to the newly added column header
   useEffect(() => {
     if (!pendingScrollColId) return;
-    const el = scrollRef.current?.querySelector(`[data-col-id="${pendingScrollColId}"]`);
+    const el = scrollRef.current?.querySelector(
+      `[data-col-id="${pendingScrollColId}"]`,
+    );
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      el.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
     }
     setPendingScrollColId(null);
   }, [pendingScrollColId, sortedCols]);
@@ -312,16 +380,22 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
   // Scroll to the newly added row header
   useEffect(() => {
     if (!pendingScrollRowId) return;
-    const el = scrollRef.current?.querySelector(`[data-row-id="${pendingScrollRowId}"]`);
+    const el = scrollRef.current?.querySelector(
+      `[data-row-id="${pendingScrollRowId}"]`,
+    );
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      el.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
     }
     setPendingScrollRowId(null);
   }, [pendingScrollRowId, sortedRows]);
 
   // Drag state refs (avoid re-renders during drag)
   const dragRef = useRef<{
-    type: 'col' | 'row' | 'row-header';
+    type: "col" | "row" | "row-header";
     id: string;
     startPos: number;
     startSize: number;
@@ -334,9 +408,14 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
       e.preventDefault();
       e.stopPropagation();
       const startWidth = colWidths[colId] ?? DEFAULT_COL_WIDTH;
-      dragRef.current = { type: 'col', id: colId, startPos: e.clientX, startSize: startWidth };
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
+      dragRef.current = {
+        type: "col",
+        id: colId,
+        startPos: e.clientX,
+        startSize: startWidth,
+      };
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
     },
     [colWidths],
   );
@@ -347,9 +426,14 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
       e.preventDefault();
       e.stopPropagation();
       const startHeight = rowHeights[rowId] ?? DEFAULT_ROW_HEIGHT;
-      dragRef.current = { type: 'row', id: rowId, startPos: e.clientY, startSize: startHeight };
-      document.body.style.cursor = 'row-resize';
-      document.body.style.userSelect = 'none';
+      dragRef.current = {
+        type: "row",
+        id: rowId,
+        startPos: e.clientY,
+        startSize: startHeight,
+      };
+      document.body.style.cursor = "row-resize";
+      document.body.style.userSelect = "none";
     },
     [rowHeights],
   );
@@ -359,9 +443,14 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      dragRef.current = { type: 'row-header', id: 'header', startPos: e.clientX, startSize: rowHeaderWidth };
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
+      dragRef.current = {
+        type: "row-header",
+        id: "header",
+        startPos: e.clientX,
+        startSize: rowHeaderWidth,
+      };
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
     },
     [rowHeaderWidth],
   );
@@ -372,15 +461,15 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
       const drag = dragRef.current;
       if (!drag) return;
 
-      if (drag.type === 'col') {
+      if (drag.type === "col") {
         const delta = e.clientX - drag.startPos;
         const newWidth = Math.max(MIN_COL_WIDTH, drag.startSize + delta);
         setColWidths((prev) => ({ ...prev, [drag.id]: newWidth }));
-      } else if (drag.type === 'row') {
+      } else if (drag.type === "row") {
         const delta = e.clientY - drag.startPos;
         const newHeight = Math.max(MIN_ROW_HEIGHT, drag.startSize + delta);
         setRowHeights((prev) => ({ ...prev, [drag.id]: newHeight }));
-      } else if (drag.type === 'row-header') {
+      } else if (drag.type === "row-header") {
         const delta = e.clientX - drag.startPos;
         const newWidth = Math.max(ROW_HEADER_MIN_WIDTH, drag.startSize + delta);
         setRowHeaderWidth(newWidth);
@@ -389,15 +478,15 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
 
     const handleMouseUp = () => {
       dragRef.current = null;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
   }, []);
 
@@ -436,7 +525,10 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
           <colgroup>
             <col style={{ width: rowHeaderWidth }} />
             {sortedCols.map((col) => (
-              <col key={col.id} style={{ width: colWidths[col.id] ?? DEFAULT_COL_WIDTH }} />
+              <col
+                key={col.id}
+                style={{ width: colWidths[col.id] ?? DEFAULT_COL_WIDTH }}
+              />
             ))}
           </colgroup>
 
@@ -459,7 +551,9 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                 <ResizeHandle
                   orientation="col"
                   onMouseDown={handleRowHeaderResizeStart}
-                  onDoubleClick={() => setRowHeaderWidth(ROW_HEADER_DEFAULT_WIDTH)}
+                  onDoubleClick={() =>
+                    setRowHeaderWidth(ROW_HEADER_DEFAULT_WIDTH)
+                  }
                 />
               </th>
 
@@ -485,14 +579,14 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                     style={{ width: w, minWidth: MIN_COL_WIDTH }}
                     className={`sticky top-0 z-sticky border-r border-b border-slate-200 p-2.5 transition-all group ${
                       isDraggingThisCol
-                        ? 'opacity-30 border-2 border-dashed border-slate-400 bg-slate-100'
+                        ? "opacity-30 border-2 border-dashed border-slate-400 bg-slate-100"
                         : isDragOverThisCol
-                        ? 'border-l-4 border-l-slate-700 bg-slate-200'
-                        : isActiveStep
-                        ? 'bg-slate-200 text-slate-900 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-slate-800'
-                        : isColSelected
-                        ? 'bg-slate-200 text-slate-900'
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
+                          ? "border-l-4 border-l-slate-700 bg-slate-200"
+                          : isActiveStep
+                            ? "bg-slate-200 text-slate-900 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-slate-800"
+                            : isColSelected
+                              ? "bg-slate-200 text-slate-900"
+                              : "bg-slate-100 hover:bg-slate-200 text-slate-800"
                     }`}
                   >
                     {/* Selected Column Header Node Outline (z local to the sticky header) */}
@@ -523,8 +617,8 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                             autoFocus
                             onChange={(e) => setEditingColText(e.target.value)}
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleSaveColName();
-                              if (e.key === 'Escape') setEditingColId(null);
+                              if (e.key === "Enter") handleSaveColName();
+                              if (e.key === "Escape") setEditingColId(null);
                             }}
                             onBlur={handleSaveColName}
                             onClick={(e) => e.stopPropagation()}
@@ -539,7 +633,9 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                             className="flex items-center min-w-0 cursor-text hover:bg-slate-200/60 rounded px-1 py-0.5 transition-colors"
                             title="Click to edit step name"
                           >
-                            <span className="font-bold text-slate-900 text-xs truncate">{col.label}</span>
+                            <span className="font-bold text-slate-900 text-xs truncate">
+                              {col.label}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -577,7 +673,13 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
               const h = rowHeights[row.id] ?? DEFAULT_ROW_HEIGHT;
 
               return (
-                <tr key={row.id} data-row-id={row.id} role="row" className={row.isInterceptor ? 'bg-amber-50/30' : ''} style={{ height: h }}>
+                <tr
+                  key={row.id}
+                  data-row-id={row.id}
+                  role="row"
+                  className={row.isInterceptor ? "bg-amber-50/30" : ""}
+                  style={{ height: h }}
+                >
                   {/* Frozen Row Header Column (1, 2, 3...) */}
                   <td
                     role="rowheader"
@@ -589,14 +691,14 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                     style={{ width: rowHeaderWidth, height: h }}
                     className={`sticky left-0 z-sticky p-2.5 border-r border-b border-slate-200 group transition-all ${
                       isDraggingThisRow
-                        ? 'opacity-30 border-2 border-dashed border-slate-400 bg-slate-100'
+                        ? "opacity-30 border-2 border-dashed border-slate-400 bg-slate-100"
                         : isDragOverThisRow
-                        ? 'border-t-4 border-t-slate-700 bg-slate-200'
-                        : row.isInterceptor
-                        ? 'bg-amber-100 text-amber-950'
-                        : isRowSelected
-                        ? 'bg-slate-200 text-slate-950 font-bold'
-                        : 'bg-slate-100 text-slate-800'
+                          ? "border-t-4 border-t-slate-700 bg-slate-200"
+                          : row.isInterceptor
+                            ? "bg-amber-100 text-amber-950"
+                            : isRowSelected
+                              ? "bg-slate-200 text-slate-950 font-bold"
+                              : "bg-slate-100 text-slate-800"
                     }`}
                   >
                     {/* Selected Row Header Node Outline (z local to the sticky header) */}
@@ -625,10 +727,12 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                               type="text"
                               value={editingRowText}
                               autoFocus
-                              onChange={(e) => setEditingRowText(e.target.value)}
+                              onChange={(e) =>
+                                setEditingRowText(e.target.value)
+                              }
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleSaveRowName();
-                                if (e.key === 'Escape') setEditingRowId(null);
+                                if (e.key === "Enter") handleSaveRowName();
+                                if (e.key === "Escape") setEditingRowId(null);
                               }}
                               onBlur={handleSaveRowName}
                               onClick={(e) => e.stopPropagation()}
@@ -643,7 +747,9 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                               className="flex items-center min-w-0 cursor-text hover:bg-slate-200/60 rounded px-1 py-0.5 transition-colors flex-1"
                               title="Click to edit row name"
                             >
-                              <span className="font-sans font-bold text-xs truncate">{row.label}</span>
+                              <span className="font-sans font-bold text-xs truncate">
+                                {row.label}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -660,7 +766,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                       {/* Row 2: Type Badge aligned below */}
                       <div className="flex items-center space-x-1.5 pl-6.5 font-mono text-[9px]">
                         <span className="px-1.5 py-0.2 rounded border font-semibold bg-slate-100 text-slate-600 border-slate-200 shrink-0">
-                          {row.type === 'workflow' ? 'SUB-WF' : 'STANDARD'}
+                          {row.type === "workflow" ? "SUB-WF" : "STANDARD"}
                         </span>
                       </div>
                     </div>
@@ -677,7 +783,8 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                     const cellKey = `${row.id}:${col.id}`;
                     const cell = matrix.cells[cellKey];
                     const isActiveStep = activeStepIndex === cIdx;
-                    const isSelectedCell = selectedRowId === row.id && selectedColId === col.id;
+                    const isSelectedCell =
+                      selectedRowId === row.id && selectedColId === col.id;
                     const isCopiedCell = copiedCellKey === cellKey;
                     const execState = cellExecutionResults?.[cellKey];
 
@@ -685,13 +792,22 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                     const hasContent = actionsList.length > 0;
 
                     // Extract input/output summary labels
-                    const allInputs = Array.from(new Set(actionsList.flatMap((a) => a.inputs || [])));
-                    const allOutputs = Array.from(new Set(actionsList.flatMap((a) => a.outputs || [])));
-                    const ruleCount = actionsList.reduce((acc, a) => acc + (a.tableRuleConfig?.rules?.length || 0), 0);
+                    const allInputs = Array.from(
+                      new Set(actionsList.flatMap((a) => a.inputs || [])),
+                    );
+                    const allOutputs = Array.from(
+                      new Set(actionsList.flatMap((a) => a.outputs || [])),
+                    );
+                    const ruleCount = actionsList.reduce(
+                      (acc, a) => acc + (a.tableRuleConfig?.rules?.length || 0),
+                      0,
+                    );
 
                     // Check for unresolved inputs and clashing outputs
-                    const { unresolvedInputs, clashingOutputs } = cellIssues[cellKey] ?? NO_ISSUES;
-                    const hasIssues = unresolvedInputs.length > 0 || clashingOutputs.length > 0;
+                    const { unresolvedInputs, clashingOutputs } =
+                      cellIssues[cellKey] ?? NO_ISSUES;
+                    const hasIssues =
+                      unresolvedInputs.length > 0 || clashingOutputs.length > 0;
 
                     return (
                       <td
@@ -702,20 +818,26 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                         aria-selected={isSelectedCell}
                         aria-label={`Cell ${getExcelColumnLetter(cIdx)}${rIdx + 1}: ${row.label}, ${col.label}`}
                         onClick={() => onSelectCell(row, col, cell)}
-                        onDoubleClick={() => onDoubleClickCell?.(row, col, cell)}
-                        style={{ width: colWidths[col.id] ?? DEFAULT_COL_WIDTH, height: h }}
+                        onDoubleClick={() =>
+                          onDoubleClickCell?.(row, col, cell)
+                        }
+                        style={{
+                          width: colWidths[col.id] ?? DEFAULT_COL_WIDTH,
+                          height: h,
+                        }}
                         className={`border-r border-b border-slate-200 cursor-pointer transition-all relative group/cell ${
                           isSelectedCell
                             ? hasIssues
-                              ? 'bg-rose-50/40 z-cell-state'
-                              : 'bg-slate-100/60 z-cell-state'
-                            : execState?.mutatedPayload && Object.keys(execState.mutatedPayload).length > 0
-                            ? 'bg-emerald-50/30 hover:bg-emerald-100/50 border-emerald-200'
-                            : hasIssues
-                            ? 'bg-rose-50/30 hover:bg-rose-100/50 border-rose-200'
-                            : isActiveStep
-                            ? 'bg-slate-100/40 hover:bg-slate-100/70'
-                            : 'bg-white hover:bg-slate-50/80'
+                              ? "bg-rose-50/40 z-cell-state"
+                              : "bg-slate-100/60 z-cell-state"
+                            : execState?.mutatedPayload &&
+                                Object.keys(execState.mutatedPayload).length > 0
+                              ? "bg-emerald-50/30 hover:bg-emerald-100/50 border-emerald-200"
+                              : hasIssues
+                                ? "bg-rose-50/30 hover:bg-rose-100/50 border-rose-200"
+                                : isActiveStep
+                                  ? "bg-slate-100/40 hover:bg-slate-100/70"
+                                  : "bg-white hover:bg-slate-50/80"
                         }`}
                       >
                         {/* Selected Cell Node Outline Overlay */}
@@ -723,15 +845,17 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                           <div
                             className={`absolute inset-0 pointer-events-none z-cell-chrome border-2 rounded-xs transition-all ${
                               hasIssues
-                                ? 'border-rose-600 shadow-[0_0_0_1px_rgba(225,29,72,0.15)]'
-                                : 'border-slate-800 shadow-[0_0_0_1px_rgba(15,23,42,0.15)]'
+                                ? "border-rose-600 shadow-[0_0_0_1px_rgba(225,29,72,0.15)]"
+                                : "border-slate-800 shadow-[0_0_0_1px_rgba(15,23,42,0.15)]"
                             }`}
                           />
                         )}
 
                         {/* Active Cell Excel Fill Handle Corner Dot */}
                         {isSelectedCell && (
-                          <div className={`absolute -bottom-0.75 -right-0.75 w-2 h-2 border border-white z-cell-chrome rounded-xs ${hasIssues ? 'bg-rose-600' : 'bg-slate-800'}`} />
+                          <div
+                            className={`absolute -bottom-0.75 -right-0.75 w-2 h-2 border border-white z-cell-chrome rounded-xs ${hasIssues ? "bg-rose-600" : "bg-slate-800"}`}
+                          />
                         )}
 
                         {/* Copied Cell Excel Marquee Pulse Outline */}
@@ -745,8 +869,8 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                             <span
                               title={
                                 unresolvedInputs.length > 0
-                                  ? `Unresolved inputs: ${unresolvedInputs.join(', ')}`
-                                  : `Clashing outputs: ${clashingOutputs.join(', ')}`
+                                  ? `Unresolved inputs: ${unresolvedInputs.join(", ")}`
+                                  : `Clashing outputs: ${clashingOutputs.join(", ")}`
                               }
                             >
                               <AlertTriangle className="h-3.5 w-3.5 text-rose-600 shrink-0" />
@@ -758,27 +882,44 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                           /* ── Configured cell with content summary ── */
                           <div className="p-2 h-full flex flex-col justify-between font-mono text-[11px]">
                             <div className="space-y-0.5 min-w-0">
-                              <div className={`text-slate-900 font-bold truncate text-[11px] flex items-center space-x-1 ${hasIssues ? 'pr-4' : ''}`}>
-                                {allInputs.length > 0 || allOutputs.length > 0 ? (
+                              <div
+                                className={`text-slate-900 font-bold truncate text-[11px] flex items-center space-x-1 ${hasIssues ? "pr-4" : ""}`}
+                              >
+                                {allInputs.length > 0 ||
+                                allOutputs.length > 0 ? (
                                   <span className="truncate">
                                     {allInputs.map((inp, iIdx) => {
-                                      const isInvalid = unresolvedInputs.includes(inp);
+                                      const isInvalid =
+                                        unresolvedInputs.includes(inp);
                                       return (
                                         <React.Fragment key={inp}>
-                                          {iIdx > 0 && ', '}
-                                          <span className={isInvalid ? 'text-rose-700 font-bold underline decoration-rose-400' : ''}>
+                                          {iIdx > 0 && ", "}
+                                          <span
+                                            className={
+                                              isInvalid
+                                                ? "text-rose-700 font-bold underline decoration-rose-400"
+                                                : ""
+                                            }
+                                          >
                                             {inp}
                                           </span>
                                         </React.Fragment>
                                       );
                                     })}
-                                    {' ➔ '}
+                                    {" ➔ "}
                                     {allOutputs.map((out, oIdx) => {
-                                      const isClash = clashingOutputs.includes(out);
+                                      const isClash =
+                                        clashingOutputs.includes(out);
                                       return (
                                         <React.Fragment key={out}>
-                                          {oIdx > 0 && ', '}
-                                          <span className={isClash ? 'text-rose-700 font-bold underline decoration-rose-400' : ''}>
+                                          {oIdx > 0 && ", "}
+                                          <span
+                                            className={
+                                              isClash
+                                                ? "text-rose-700 font-bold underline decoration-rose-400"
+                                                : ""
+                                            }
+                                          >
                                             {out}
                                           </span>
                                         </React.Fragment>
@@ -786,31 +927,42 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                                     })}
                                   </span>
                                 ) : (
-                                  <span className="truncate text-slate-600">Decision Table Configured</span>
+                                  <span className="truncate text-slate-600">
+                                    Decision Table Configured
+                                  </span>
                                 )}
                               </div>
 
                               {/* Evaluated Execution Mutated State Badge */}
-                              {execState?.mutatedPayload && Object.keys(execState.mutatedPayload).length > 0 ? (
+                              {execState?.mutatedPayload &&
+                              Object.keys(execState.mutatedPayload).length >
+                                0 ? (
                                 <div className="mt-1 bg-amber-50 text-amber-950 border border-amber-300 rounded px-1.5 py-0.5 text-[9.5px] font-mono font-bold truncate flex items-center justify-between shadow-2xs">
                                   <span className="truncate">
                                     {Object.entries(execState.mutatedPayload)
-                                      .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
-                                      .join(', ')}
+                                      .map(
+                                        ([k, v]) =>
+                                          `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`,
+                                      )
+                                      .join(", ")}
                                   </span>
                                   {execState.latencyMs !== undefined && (
-                                    <span className="text-[8px] text-amber-700 shrink-0 ml-1 font-semibold">{execState.latencyMs}ms</span>
+                                    <span className="text-[8px] text-amber-700 shrink-0 ml-1 font-semibold">
+                                      {execState.latencyMs}ms
+                                    </span>
                                   )}
                                 </div>
                               ) : (
-                                <div className={`text-[9px] truncate font-mono ${hasIssues ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
+                                <div
+                                  className={`text-[9px] truncate font-mono ${hasIssues ? "text-rose-600 font-bold" : "text-slate-500"}`}
+                                >
                                   {hasIssues
                                     ? unresolvedInputs.length > 0
-                                      ? `Missing input source: ${unresolvedInputs.join(', ')}`
-                                      : `Output conflict: ${clashingOutputs.join(', ')}`
+                                      ? `Missing input source: ${unresolvedInputs.join(", ")}`
+                                      : `Output conflict: ${clashingOutputs.join(", ")}`
                                     : ruleCount > 0
-                                    ? `${ruleCount} rule matches set`
-                                    : 'Sub-Workflow Step'}
+                                      ? `${ruleCount} rule matches set`
+                                      : "Sub-Workflow Step"}
                                 </div>
                               )}
                             </div>
@@ -835,7 +987,11 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
 
       {/* Dependency flow connectors — fixed-position layer, kept outside the scroll content */}
       {showFlows && (
-        <DependencyConnectorOverlay activeDependency={activeDependency} dependencies={dependencies} containerRef={scrollRef} />
+        <DependencyConnectorOverlay
+          activeDependency={activeDependency}
+          dependencies={dependencies}
+          containerRef={scrollRef}
+        />
       )}
     </div>
   );

@@ -4,13 +4,13 @@ export class TelSyntaxError extends Error {
     public readonly pos: number,
   ) {
     super(message);
-    this.name = 'TelSyntaxError';
+    this.name = "TelSyntaxError";
   }
 }
 
 export class TelRuntimeError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'TelRuntimeError';
+    this.name = "TelRuntimeError";
   }
 }

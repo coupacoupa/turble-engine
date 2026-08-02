@@ -1,7 +1,10 @@
-import { compileMatrix } from './compile/compile';
-import { executeMatrixSync, ExecuteOptions } from './exec/execute';
-import { MatrixExecutionResult, toLegacyExecutionResult } from './replay/legacy';
-import { MatrixSchema } from './schema/matrix-schema';
+import { compileMatrix } from "./compile/compile";
+import { executeMatrixSync, ExecuteOptions } from "./exec/execute";
+import {
+  MatrixExecutionResult,
+  toLegacyExecutionResult,
+} from "./replay/legacy";
+import { MatrixSchema } from "./schema/matrix-schema";
 
 /**
  * One-shot convenience: compile + execute + project to the legacy result shape
@@ -17,9 +20,14 @@ export function evaluateMatrix(
 
   if (!plan) {
     return {
-      executionId: '',
+      executionId: "",
       matrixId: matrix.id,
-      eventLog: { executionId: '', matrixId: matrix.id, startedAt: 0, stepRecords: [] },
+      eventLog: {
+        executionId: "",
+        matrixId: matrix.id,
+        startedAt: 0,
+        stepRecords: [],
+      },
       finalPayload: {},
       hasErrors: true,
       diagnostics,

@@ -1,14 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { Layers, Plus, ArrowRight, Cpu, GitBranch, Trash2, FolderPlus } from 'lucide-react';
-import { MatrixSchema } from '@/types/matrix.types';
-import { WorkflowStorageService } from '@/services/workflow-storage.service';
-import { AppHeader } from '@/components/layout/app-header.component';
+import React, { useState, useEffect } from "react";
+import {
+  Layers,
+  Plus,
+  ArrowRight,
+  Cpu,
+  GitBranch,
+  Trash2,
+  FolderPlus,
+} from "lucide-react";
+import { MatrixSchema } from "@/types/matrix.types";
+import { WorkflowStorageService } from "@/services/workflow-storage.service";
+import { AppHeader } from "@/components/layout/app-header.component";
 
 interface WorkflowDirectoryPageProps {
   onOpenBuilder: (workflowId: string) => void;
 }
 
-export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({ onOpenBuilder }) => {
+export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({
+  onOpenBuilder,
+}) => {
   const [workflows, setWorkflows] = useState<MatrixSchema[]>([]);
 
   useEffect(() => {
@@ -19,11 +29,18 @@ export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({ on
     const id = `wf_matrix_${Date.now()}`;
     const newMatrix: MatrixSchema = {
       id,
-      name: 'Untitled Matrix Workflow',
-      description: 'Newly initialized 2D decision matrix workflow.',
-      version: '1.0.0',
-      columns: [{ id: `col_${Date.now()}`, label: 'Step 1', order: 0 }],
-      rows: [{ id: `row_${Date.now()}`, label: 'Row #1', order: 0, type: 'standard' }],
+      name: "Untitled Matrix Workflow",
+      description: "Newly initialized 2D decision matrix workflow.",
+      version: "1.0.0",
+      columns: [{ id: `col_${Date.now()}`, label: "Step 1", order: 0 }],
+      rows: [
+        {
+          id: `row_${Date.now()}`,
+          label: "Row #1",
+          order: 0,
+          type: "standard",
+        },
+      ],
       cells: {},
     };
     WorkflowStorageService.save(newMatrix);
@@ -51,7 +68,8 @@ export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({ on
               <span>Workflow Matrix Directory</span>
             </h1>
             <p className="text-slate-500 text-xs mt-1 font-mono">
-              Manage custom 2D matrix workflows, decision table scorecards, and sub-capabilities.
+              Manage custom 2D matrix workflows, decision table scorecards, and
+              sub-capabilities.
             </p>
           </div>
 
@@ -71,7 +89,9 @@ export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({ on
               <FolderPlus className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">No Workflow Matrices Yet</h3>
+              <h3 className="text-sm font-bold text-slate-900">
+                No Workflow Matrices Yet
+              </h3>
               <p className="text-xs text-slate-500 mt-1 font-mono">
                 Get started by creating your first 2D decision matrix workflow.
               </p>
@@ -117,7 +137,7 @@ export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({ on
                   </div>
 
                   <p className="text-slate-600 text-xs leading-relaxed line-clamp-2">
-                    {wf.description || 'No description provided.'}
+                    {wf.description || "No description provided."}
                   </p>
 
                   <div className="flex items-center space-x-4 text-[11px] font-mono text-slate-500 pt-2 border-t border-slate-100">

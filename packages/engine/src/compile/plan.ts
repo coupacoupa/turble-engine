@@ -1,7 +1,7 @@
-import { Expr } from '../lang/ast';
-import { CompiledCondition } from '../lang/condition';
-import { Value } from '../lang/value';
-import { Diagnostic } from './diagnostics';
+import { Expr } from "../lang/ast";
+import { CompiledCondition } from "../lang/condition";
+import { Value } from "../lang/value";
+import { Diagnostic } from "./diagnostics";
 
 export interface PlannedRule {
   /** Conditions in stable key order */
@@ -12,10 +12,29 @@ export interface PlannedRule {
 }
 
 export type PlannedAction =
-  | { kind: 'table_rule'; id: string; enabled: boolean; hitPolicy: 'first_match' | 'all_matches'; rules: PlannedRule[] }
-  | { kind: 'expression'; id: string; enabled: boolean; source: string; ast: Expr; outputVariable: string }
-  | { kind: 'event_emitter'; id: string; enabled: boolean; eventName: string; payload: Record<string, Value> }
-  | { kind: 'unsupported'; id: string; enabled: boolean; type: string };
+  | {
+      kind: "table_rule";
+      id: string;
+      enabled: boolean;
+      hitPolicy: "first_match" | "all_matches";
+      rules: PlannedRule[];
+    }
+  | {
+      kind: "expression";
+      id: string;
+      enabled: boolean;
+      source: string;
+      ast: Expr;
+      outputVariable: string;
+    }
+  | {
+      kind: "event_emitter";
+      id: string;
+      enabled: boolean;
+      eventName: string;
+      payload: Record<string, Value>;
+    }
+  | { kind: "unsupported"; id: string; enabled: boolean; type: string };
 
 export interface PlannedCell {
   cellId: string;

@@ -43,10 +43,20 @@ message StreamExecutionStepsRequest {
   string initial_payload_json = 2;
 }
 
+message ExecutionEventProto {
+  int64 seq = 1;
+  string type = 2;
+  string span_id = 3;
+  string parent_span_id = 4;
+  int64 t_monotonic_us = 5;
+  string payload_json = 6;
+}
+
 message StreamExecutionStepsResponse {
   string execution_id = 1;
   StepEvaluationRecordProto current_step_record = 2;
   bool is_completed = 3;
+  repeated ExecutionEventProto events = 4;
 }
 
 service MatrixEvaluatorService {

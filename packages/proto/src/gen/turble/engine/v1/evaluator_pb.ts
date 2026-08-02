@@ -2,8 +2,16 @@
 // @generated from file turble/engine/v1/evaluator.proto (package turble.engine.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type {
+  GenFile,
+  GenMessage,
+  GenService,
+} from "@bufbuild/protobuf/codegenv2";
+import {
+  fileDesc,
+  messageDesc,
+  serviceDesc,
+} from "@bufbuild/protobuf/codegenv2";
 import type { CellActionType, MatrixSchema } from "./matrix_pb";
 import { file_turble_engine_v1_matrix } from "./matrix_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -11,36 +19,40 @@ import type { Message } from "@bufbuild/protobuf";
 /**
  * Describes the file turble/engine/v1/evaluator.proto.
  */
-export const file_turble_engine_v1_evaluator: GenFile = /*@__PURE__*/
-  fileDesc("CiB0dXJibGUvZW5naW5lL3YxL2V2YWx1YXRvci5wcm90bxIQdHVyYmxlLmVuZ2luZS52MSJ+ChRFeGVjdXRlTWF0cml4UmVxdWVzdBIRCgltYXRyaXhfaWQYASABKAkSNQoNbWF0cml4X3NjaGVtYRgCIAEoCzIeLnR1cmJsZS5lbmdpbmUudjEuTWF0cml4U2NoZW1hEhwKFGluaXRpYWxfcGF5bG9hZF9qc29uGAMgASgJIrYBCg9DZWxsUmVzdWx0UHJvdG8SDwoHY2VsbF9pZBgBIAEoCRIOCgZyb3dfaWQYAiABKAkSDgoGY29sX2lkGAMgASgJEjAKBmFjdGlvbhgEIAEoDjIgLnR1cmJsZS5lbmdpbmUudjEuQ2VsbEFjdGlvblR5cGUSDgoGc3RhdHVzGAUgASgJEhwKFG11dGF0ZWRfcGF5bG9hZF9qc29uGAYgASgJEhIKCmxhdGVuY3lfbXMYByABKAMi2AEKGVN0ZXBFdmFsdWF0aW9uUmVjb3JkUHJvdG8SEgoKc3RlcF9pbmRleBgBIAEoBRIOCgZjb2xfaWQYAiABKAkSEQoJY29sX2xhYmVsGAMgASgJEhEKCXRpbWVzdGFtcBgEIAEoAxIcChRpbml0aWFsX3BheWxvYWRfanNvbhgFIAEoCRIaChJmaW5hbF9wYXlsb2FkX2pzb24YBiABKAkSNwoMY2VsbF9yZXN1bHRzGAcgAygLMiEudHVyYmxlLmVuZ2luZS52MS5DZWxsUmVzdWx0UHJvdG8iswEKFUV4ZWN1dGVNYXRyaXhSZXNwb25zZRIUCgxleGVjdXRpb25faWQYASABKAkSEQoJbWF0cml4X2lkGAIgASgJEhoKEmZpbmFsX3BheWxvYWRfanNvbhgDIAEoCRISCgpoYXNfZXJyb3JzGAQgASgIEkEKDHN0ZXBfcmVjb3JkcxgFIAMoCzIrLnR1cmJsZS5lbmdpbmUudjEuU3RlcEV2YWx1YXRpb25SZWNvcmRQcm90byJOChtTdHJlYW1FeGVjdXRpb25TdGVwc1JlcXVlc3QSEQoJbWF0cml4X2lkGAEgASgJEhwKFGluaXRpYWxfcGF5bG9hZF9qc29uGAIgASgJIpQBChxTdHJlYW1FeGVjdXRpb25TdGVwc1Jlc3BvbnNlEhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRJIChNjdXJyZW50X3N0ZXBfcmVjb3JkGAIgASgLMisudHVyYmxlLmVuZ2luZS52MS5TdGVwRXZhbHVhdGlvblJlY29yZFByb3RvEhQKDGlzX2NvbXBsZXRlZBgDIAEoCDLzAQoWTWF0cml4RXZhbHVhdG9yU2VydmljZRJgCg1FeGVjdXRlTWF0cml4EiYudHVyYmxlLmVuZ2luZS52MS5FeGVjdXRlTWF0cml4UmVxdWVzdBonLnR1cmJsZS5lbmdpbmUudjEuRXhlY3V0ZU1hdHJpeFJlc3BvbnNlEncKFFN0cmVhbUV4ZWN1dGlvblN0ZXBzEi0udHVyYmxlLmVuZ2luZS52MS5TdHJlYW1FeGVjdXRpb25TdGVwc1JlcXVlc3QaLi50dXJibGUuZW5naW5lLnYxLlN0cmVhbUV4ZWN1dGlvblN0ZXBzUmVzcG9uc2UwAWIGcHJvdG8z", [file_turble_engine_v1_matrix]);
+export const file_turble_engine_v1_evaluator: GenFile =
+  /*@__PURE__*/
+  fileDesc(
+    "CiB0dXJibGUvZW5naW5lL3YxL2V2YWx1YXRvci5wcm90bxIQdHVyYmxlLmVuZ2luZS52MSJ+ChRFeGVjdXRlTWF0cml4UmVxdWVzdBIRCgltYXRyaXhfaWQYASABKAkSNQoNbWF0cml4X3NjaGVtYRgCIAEoCzIeLnR1cmJsZS5lbmdpbmUudjEuTWF0cml4U2NoZW1hEhwKFGluaXRpYWxfcGF5bG9hZF9qc29uGAMgASgJIrYBCg9DZWxsUmVzdWx0UHJvdG8SDwoHY2VsbF9pZBgBIAEoCRIOCgZyb3dfaWQYAiABKAkSDgoGY29sX2lkGAMgASgJEjAKBmFjdGlvbhgEIAEoDjIgLnR1cmJsZS5lbmdpbmUudjEuQ2VsbEFjdGlvblR5cGUSDgoGc3RhdHVzGAUgASgJEhwKFG11dGF0ZWRfcGF5bG9hZF9qc29uGAYgASgJEhIKCmxhdGVuY3lfbXMYByABKAMi2AEKGVN0ZXBFdmFsdWF0aW9uUmVjb3JkUHJvdG8SEgoKc3RlcF9pbmRleBgBIAEoBRIOCgZjb2xfaWQYAiABKAkSEQoJY29sX2xhYmVsGAMgASgJEhEKCXRpbWVzdGFtcBgEIAEoAxIcChRpbml0aWFsX3BheWxvYWRfanNvbhgFIAEoCRIaChJmaW5hbF9wYXlsb2FkX2pzb24YBiABKAkSNwoMY2VsbF9yZXN1bHRzGAcgAygLMiEudHVyYmxlLmVuZ2luZS52MS5DZWxsUmVzdWx0UHJvdG8iswEKFUV4ZWN1dGVNYXRyaXhSZXNwb25zZRIUCgxleGVjdXRpb25faWQYASABKAkSEQoJbWF0cml4X2lkGAIgASgJEhoKEmZpbmFsX3BheWxvYWRfanNvbhgDIAEoCRISCgpoYXNfZXJyb3JzGAQgASgIEkEKDHN0ZXBfcmVjb3JkcxgFIAMoCzIrLnR1cmJsZS5lbmdpbmUudjEuU3RlcEV2YWx1YXRpb25SZWNvcmRQcm90byJOChtTdHJlYW1FeGVjdXRpb25TdGVwc1JlcXVlc3QSEQoJbWF0cml4X2lkGAEgASgJEhwKFGluaXRpYWxfcGF5bG9hZF9qc29uGAIgASgJIocBChNFeGVjdXRpb25FdmVudFByb3RvEgsKA3NlcRgBIAEoAxIMCgR0eXBlGAIgASgJEg8KB3NwYW5faWQYAyABKAkSFgoOcGFyZW50X3NwYW5faWQYBCABKAkSFgoOdF9tb25vdG9uaWNfdXMYBSABKAMSFAoMcGF5bG9hZF9qc29uGAYgASgJIssBChxTdHJlYW1FeGVjdXRpb25TdGVwc1Jlc3BvbnNlEhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRJIChNjdXJyZW50X3N0ZXBfcmVjb3JkGAIgASgLMisudHVyYmxlLmVuZ2luZS52MS5TdGVwRXZhbHVhdGlvblJlY29yZFByb3RvEhQKDGlzX2NvbXBsZXRlZBgDIAEoCBI1CgZldmVudHMYBCADKAsyJS50dXJibGUuZW5naW5lLnYxLkV4ZWN1dGlvbkV2ZW50UHJvdG8y8wEKFk1hdHJpeEV2YWx1YXRvclNlcnZpY2USYAoNRXhlY3V0ZU1hdHJpeBImLnR1cmJsZS5lbmdpbmUudjEuRXhlY3V0ZU1hdHJpeFJlcXVlc3QaJy50dXJibGUuZW5naW5lLnYxLkV4ZWN1dGVNYXRyaXhSZXNwb25zZRJ3ChRTdHJlYW1FeGVjdXRpb25TdGVwcxItLnR1cmJsZS5lbmdpbmUudjEuU3RyZWFtRXhlY3V0aW9uU3RlcHNSZXF1ZXN0Gi4udHVyYmxlLmVuZ2luZS52MS5TdHJlYW1FeGVjdXRpb25TdGVwc1Jlc3BvbnNlMAFiBnByb3RvMw",
+    [file_turble_engine_v1_matrix],
+  );
 
 /**
  * @generated from message turble.engine.v1.ExecuteMatrixRequest
  */
-export type ExecuteMatrixRequest = Message<"turble.engine.v1.ExecuteMatrixRequest"> & {
-  /**
-   * @generated from field: string matrix_id = 1;
-   */
-  matrixId: string;
+export type ExecuteMatrixRequest =
+  Message<"turble.engine.v1.ExecuteMatrixRequest"> & {
+    /**
+     * @generated from field: string matrix_id = 1;
+     */
+    matrixId: string;
 
-  /**
-   * @generated from field: turble.engine.v1.MatrixSchema matrix_schema = 2;
-   */
-  matrixSchema?: MatrixSchema | undefined;
+    /**
+     * @generated from field: turble.engine.v1.MatrixSchema matrix_schema = 2;
+     */
+    matrixSchema?: MatrixSchema | undefined;
 
-  /**
-   * Dynamic initial payload formatted as JSON string
-   *
-   * @generated from field: string initial_payload_json = 3;
-   */
-  initialPayloadJson: string;
-};
+    /**
+     * @generated from field: string initial_payload_json = 3;
+     */
+    initialPayloadJson: string;
+  };
 
 /**
  * Describes the message turble.engine.v1.ExecuteMatrixRequest.
  * Use `create(ExecuteMatrixRequestSchema)` to create a new message.
  */
-export const ExecuteMatrixRequestSchema: GenMessage<ExecuteMatrixRequest> = /*@__PURE__*/
+export const ExecuteMatrixRequestSchema: GenMessage<ExecuteMatrixRequest> =
+  /*@__PURE__*/
   messageDesc(file_turble_engine_v1_evaluator, 0);
 
 /**
@@ -87,141 +99,199 @@ export type CellResultProto = Message<"turble.engine.v1.CellResultProto"> & {
  * Describes the message turble.engine.v1.CellResultProto.
  * Use `create(CellResultProtoSchema)` to create a new message.
  */
-export const CellResultProtoSchema: GenMessage<CellResultProto> = /*@__PURE__*/
+export const CellResultProtoSchema: GenMessage<CellResultProto> =
+  /*@__PURE__*/
   messageDesc(file_turble_engine_v1_evaluator, 1);
 
 /**
  * @generated from message turble.engine.v1.StepEvaluationRecordProto
  */
-export type StepEvaluationRecordProto = Message<"turble.engine.v1.StepEvaluationRecordProto"> & {
-  /**
-   * @generated from field: int32 step_index = 1;
-   */
-  stepIndex: number;
+export type StepEvaluationRecordProto =
+  Message<"turble.engine.v1.StepEvaluationRecordProto"> & {
+    /**
+     * @generated from field: int32 step_index = 1;
+     */
+    stepIndex: number;
 
-  /**
-   * @generated from field: string col_id = 2;
-   */
-  colId: string;
+    /**
+     * @generated from field: string col_id = 2;
+     */
+    colId: string;
 
-  /**
-   * @generated from field: string col_label = 3;
-   */
-  colLabel: string;
+    /**
+     * @generated from field: string col_label = 3;
+     */
+    colLabel: string;
 
-  /**
-   * @generated from field: int64 timestamp = 4;
-   */
-  timestamp: bigint;
+    /**
+     * @generated from field: int64 timestamp = 4;
+     */
+    timestamp: bigint;
 
-  /**
-   * @generated from field: string initial_payload_json = 5;
-   */
-  initialPayloadJson: string;
+    /**
+     * @generated from field: string initial_payload_json = 5;
+     */
+    initialPayloadJson: string;
 
-  /**
-   * @generated from field: string final_payload_json = 6;
-   */
-  finalPayloadJson: string;
+    /**
+     * @generated from field: string final_payload_json = 6;
+     */
+    finalPayloadJson: string;
 
-  /**
-   * @generated from field: repeated turble.engine.v1.CellResultProto cell_results = 7;
-   */
-  cellResults: CellResultProto[];
-};
+    /**
+     * @generated from field: repeated turble.engine.v1.CellResultProto cell_results = 7;
+     */
+    cellResults: CellResultProto[];
+  };
 
 /**
  * Describes the message turble.engine.v1.StepEvaluationRecordProto.
  * Use `create(StepEvaluationRecordProtoSchema)` to create a new message.
  */
-export const StepEvaluationRecordProtoSchema: GenMessage<StepEvaluationRecordProto> = /*@__PURE__*/
+export const StepEvaluationRecordProtoSchema: GenMessage<StepEvaluationRecordProto> =
+  /*@__PURE__*/
   messageDesc(file_turble_engine_v1_evaluator, 2);
 
 /**
  * @generated from message turble.engine.v1.ExecuteMatrixResponse
  */
-export type ExecuteMatrixResponse = Message<"turble.engine.v1.ExecuteMatrixResponse"> & {
-  /**
-   * @generated from field: string execution_id = 1;
-   */
-  executionId: string;
+export type ExecuteMatrixResponse =
+  Message<"turble.engine.v1.ExecuteMatrixResponse"> & {
+    /**
+     * @generated from field: string execution_id = 1;
+     */
+    executionId: string;
 
-  /**
-   * @generated from field: string matrix_id = 2;
-   */
-  matrixId: string;
+    /**
+     * @generated from field: string matrix_id = 2;
+     */
+    matrixId: string;
 
-  /**
-   * @generated from field: string final_payload_json = 3;
-   */
-  finalPayloadJson: string;
+    /**
+     * @generated from field: string final_payload_json = 3;
+     */
+    finalPayloadJson: string;
 
-  /**
-   * @generated from field: bool has_errors = 4;
-   */
-  hasErrors: boolean;
+    /**
+     * @generated from field: bool has_errors = 4;
+     */
+    hasErrors: boolean;
 
-  /**
-   * @generated from field: repeated turble.engine.v1.StepEvaluationRecordProto step_records = 5;
-   */
-  stepRecords: StepEvaluationRecordProto[];
-};
+    /**
+     * @generated from field: repeated turble.engine.v1.StepEvaluationRecordProto step_records = 5;
+     */
+    stepRecords: StepEvaluationRecordProto[];
+  };
 
 /**
  * Describes the message turble.engine.v1.ExecuteMatrixResponse.
  * Use `create(ExecuteMatrixResponseSchema)` to create a new message.
  */
-export const ExecuteMatrixResponseSchema: GenMessage<ExecuteMatrixResponse> = /*@__PURE__*/
+export const ExecuteMatrixResponseSchema: GenMessage<ExecuteMatrixResponse> =
+  /*@__PURE__*/
   messageDesc(file_turble_engine_v1_evaluator, 3);
 
 /**
  * @generated from message turble.engine.v1.StreamExecutionStepsRequest
  */
-export type StreamExecutionStepsRequest = Message<"turble.engine.v1.StreamExecutionStepsRequest"> & {
-  /**
-   * @generated from field: string matrix_id = 1;
-   */
-  matrixId: string;
+export type StreamExecutionStepsRequest =
+  Message<"turble.engine.v1.StreamExecutionStepsRequest"> & {
+    /**
+     * @generated from field: string matrix_id = 1;
+     */
+    matrixId: string;
 
-  /**
-   * @generated from field: string initial_payload_json = 2;
-   */
-  initialPayloadJson: string;
-};
+    /**
+     * @generated from field: string initial_payload_json = 2;
+     */
+    initialPayloadJson: string;
+  };
 
 /**
  * Describes the message turble.engine.v1.StreamExecutionStepsRequest.
  * Use `create(StreamExecutionStepsRequestSchema)` to create a new message.
  */
-export const StreamExecutionStepsRequestSchema: GenMessage<StreamExecutionStepsRequest> = /*@__PURE__*/
+export const StreamExecutionStepsRequestSchema: GenMessage<StreamExecutionStepsRequest> =
+  /*@__PURE__*/
   messageDesc(file_turble_engine_v1_evaluator, 4);
+
+/**
+ * @generated from message turble.engine.v1.ExecutionEventProto
+ */
+export type ExecutionEventProto =
+  Message<"turble.engine.v1.ExecutionEventProto"> & {
+    /**
+     * @generated from field: int64 seq = 1;
+     */
+    seq: bigint;
+
+    /**
+     * @generated from field: string type = 2;
+     */
+    type: string;
+
+    /**
+     * @generated from field: string span_id = 3;
+     */
+    spanId: string;
+
+    /**
+     * @generated from field: string parent_span_id = 4;
+     */
+    parentSpanId: string;
+
+    /**
+     * @generated from field: int64 t_monotonic_us = 5;
+     */
+    tMonotonicUs: bigint;
+
+    /**
+     * @generated from field: string payload_json = 6;
+     */
+    payloadJson: string;
+  };
+
+/**
+ * Describes the message turble.engine.v1.ExecutionEventProto.
+ * Use `create(ExecutionEventProtoSchema)` to create a new message.
+ */
+export const ExecutionEventProtoSchema: GenMessage<ExecutionEventProto> =
+  /*@__PURE__*/
+  messageDesc(file_turble_engine_v1_evaluator, 5);
 
 /**
  * @generated from message turble.engine.v1.StreamExecutionStepsResponse
  */
-export type StreamExecutionStepsResponse = Message<"turble.engine.v1.StreamExecutionStepsResponse"> & {
-  /**
-   * @generated from field: string execution_id = 1;
-   */
-  executionId: string;
+export type StreamExecutionStepsResponse =
+  Message<"turble.engine.v1.StreamExecutionStepsResponse"> & {
+    /**
+     * @generated from field: string execution_id = 1;
+     */
+    executionId: string;
 
-  /**
-   * @generated from field: turble.engine.v1.StepEvaluationRecordProto current_step_record = 2;
-   */
-  currentStepRecord?: StepEvaluationRecordProto | undefined;
+    /**
+     * @generated from field: turble.engine.v1.StepEvaluationRecordProto current_step_record = 2;
+     */
+    currentStepRecord?: StepEvaluationRecordProto | undefined;
 
-  /**
-   * @generated from field: bool is_completed = 3;
-   */
-  isCompleted: boolean;
-};
+    /**
+     * @generated from field: bool is_completed = 3;
+     */
+    isCompleted: boolean;
+
+    /**
+     * @generated from field: repeated turble.engine.v1.ExecutionEventProto events = 4;
+     */
+    events: ExecutionEventProto[];
+  };
 
 /**
  * Describes the message turble.engine.v1.StreamExecutionStepsResponse.
  * Use `create(StreamExecutionStepsResponseSchema)` to create a new message.
  */
-export const StreamExecutionStepsResponseSchema: GenMessage<StreamExecutionStepsResponse> = /*@__PURE__*/
-  messageDesc(file_turble_engine_v1_evaluator, 5);
+export const StreamExecutionStepsResponseSchema: GenMessage<StreamExecutionStepsResponse> =
+  /*@__PURE__*/
+  messageDesc(file_turble_engine_v1_evaluator, 6);
 
 /**
  * @generated from service turble.engine.v1.MatrixEvaluatorService
@@ -236,7 +306,7 @@ export const MatrixEvaluatorService: GenService<{
     methodKind: "unary";
     input: typeof ExecuteMatrixRequestSchema;
     output: typeof ExecuteMatrixResponseSchema;
-  },
+  };
   /**
    * Real-time server streaming step telemetry
    *
@@ -246,7 +316,5 @@ export const MatrixEvaluatorService: GenService<{
     methodKind: "server_streaming";
     input: typeof StreamExecutionStepsRequestSchema;
     output: typeof StreamExecutionStepsResponseSchema;
-  },
-}> = /*@__PURE__*/
-  serviceDesc(file_turble_engine_v1_evaluator, 0);
-
+  };
+}> = /*@__PURE__*/ serviceDesc(file_turble_engine_v1_evaluator, 0);

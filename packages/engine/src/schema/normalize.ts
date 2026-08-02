@@ -1,4 +1,4 @@
-import { CellActionItem, CellSchema } from './matrix-schema';
+import { CellActionItem, CellSchema } from "./matrix-schema";
 
 /**
  * Normalizes a cell to its list of actions. Single source of truth — every
@@ -15,7 +15,7 @@ import { CellActionItem, CellSchema } from './matrix-schema';
 export function getCellActions(cell?: CellSchema | null): CellActionItem[] {
   if (!cell) return [];
   if (cell.actions) return cell.actions;
-  if (!cell.action || cell.action === 'passthrough') return [];
+  if (!cell.action || cell.action === "passthrough") return [];
 
   return [
     {

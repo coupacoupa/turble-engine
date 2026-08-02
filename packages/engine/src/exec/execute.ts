@@ -1,11 +1,16 @@
-import { CompiledPlan, PlannedCell } from '../compile/plan';
-import { ConditionResult, ExecutionEvent, ExecutionLog, MutationSource } from '../events/types';
-import { EventSink } from '../events/sink';
-import { createDefaultHost, HostEnvironment } from '../host/host';
-import { evaluate, scopeFromObject } from '../lang/eval';
-import { toValue, Value } from '../lang/value';
+import { CompiledPlan, PlannedCell } from "../compile/plan";
+import {
+  ConditionResult,
+  ExecutionEvent,
+  ExecutionLog,
+  MutationSource,
+} from "../events/types";
+import { EventSink } from "../events/sink";
+import { createDefaultHost, HostEnvironment } from "../host/host";
+import { evaluate, scopeFromObject } from "../lang/eval";
+import { toValue, Value } from "../lang/value";
 
-export type CapturePolicy = 'full' | 'none';
+export type CapturePolicy = "full" | "none";
 
 export interface ExecuteOptions {
   host?: HostEnvironment;
@@ -20,10 +25,12 @@ export interface ExecuteOptions {
 }
 
 /** Omit that distributes over each member of the event union. */
-type DistributiveOmit<T, K extends keyof any> = T extends any ? Omit<T, K> : never;
+type DistributiveOmit<T, K extends keyof any> = T extends any
+  ? Omit<T, K>
+  : never;
 
 interface Emitter {
-  emit(partial: DistributiveOmit<ExecutionEvent, 'seq' | 'tUs'>): void;
+  emit(partial: DistributiveOmit<ExecutionEvent, "seq" | "tUs">): void;
 }
 
 /**
@@ -37,16 +44,20 @@ export function executeMatrixSync(
   opts: ExecuteOptions = {},
 ): ExecutionLog {
   const host = opts.host ?? createDefaultHost();
-  const capture: CapturePolicy = opts.capture ?? 'full';
+  const capture: CapturePolicy = opts.capture ?? "full";
 
-  const executionId = host.newId('exec');
+  const executionId = host.newId("exec");
   const events: ExecutionEvent[] = [];
   const t0 = host.now();
   let seq = 0;
 
   const emitter: Emitter = {
     emit(partial) {
-      const event = { ...partial, seq: seq++, tUs: host.now() - t0 } as ExecutionEvent;
+      const event = {
+        ...partial,
+        seq: seq++,
+        tUs: host.now() - t0,
+      } as ExecutionEvent;
       events.push(event);
       opts.sink?.emit(event);
     },
@@ -55,24 +66,29 @@ export function executeMatrixSync(
   const payload: Record<string, Value> = {};
   for (const [k, v] of Object.entries(input ?? {})) payload[k] = toValue(v);
 
-  const execSpan = host.newId('span');
+  const execSpan = host.newId("span");
   emitter.emit({
-    type: 'execution_started',
+    type: "execution_started",
     spanId: execSpan,
     executionId,
     matrixId: plan.matrixId,
     planHash: plan.planHash,
     wallStartMs: host.wallClock(),
-    input: capture === 'full' ? { ...payload } : undefined,
+    input: capture === "full" ? { ...payload } : undefined,
   });
 
   let currentColIdx = -1;
-  let currentColSpan = '';
+  let currentColSpan = "";
   let hadFailure = false;
 
   const closeColumn = () => {
     if (currentColIdx >= 0) {
-      emitter.emit({ type: 'column_completed', spanId: currentColSpan, parentSpanId: execSpan, colId: plan.columns[currentColIdx]!.id });
+      emitter.emit({
+        type: "column_completed",
+        spanId: currentColSpan,
+        parentSpanId: execSpan,
+        colId: plan.columns[currentColIdx]!.id,
+      });
     }
   };
 
@@ -80,10 +96,10 @@ export function executeMatrixSync(
     if (cell.colIdx !== currentColIdx) {
       closeColumn();
       currentColIdx = cell.colIdx;
-      currentColSpan = host.newId('span');
+      currentColSpan = host.newId("span");
       const col = plan.columns[cell.colIdx]!;
       emitter.emit({
-        type: 'column_started',
+        type: "column_started",
         spanId: currentColSpan,
         parentSpanId: execSpan,
         colId: col.id,
@@ -94,13 +110,13 @@ export function executeMatrixSync(
 
     if (cell.disabled) {
       emitter.emit({
-        type: 'cell_skipped',
-        spanId: host.newId('span'),
+        type: "cell_skipped",
+        spanId: host.newId("span"),
         parentSpanId: currentColSpan,
         cellId: cell.cellId,
         rowId: cell.rowId,
         colId: cell.colId,
-        reason: 'disabled',
+        reason: "disabled",
       });
       continue;
     }
@@ -112,9 +128,9 @@ export function executeMatrixSync(
   closeColumn();
 
   emitter.emit({
-    type: 'execution_completed',
+    type: "execution_completed",
     spanId: execSpan,
-    finalPayload: capture === 'full' ? { ...payload } : undefined,
+    finalPayload: capture === "full" ? { ...payload } : undefined,
   });
   void hadFailure; // recorded per-action via action_failed; projections derive hasErrors from those
 
@@ -130,10 +146,10 @@ function executeCell(
   columnSpan: string,
   capture: CapturePolicy,
 ): boolean {
-  const cellSpan = host.newId('span');
+  const cellSpan = host.newId("span");
   const cellStart = host.now();
   emitter.emit({
-    type: 'cell_started',
+    type: "cell_started",
     spanId: cellSpan,
     parentSpanId: columnSpan,
     cellId: cell.cellId,
@@ -145,22 +161,22 @@ function executeCell(
 
   for (let actionIdx = 0; actionIdx < cell.actions.length; actionIdx++) {
     const action = cell.actions[actionIdx]!;
-    const actionSpan = host.newId('span');
+    const actionSpan = host.newId("span");
 
-    if (!action.enabled || action.kind === 'unsupported') {
+    if (!action.enabled || action.kind === "unsupported") {
       emitter.emit({
-        type: 'action_skipped',
+        type: "action_skipped",
         spanId: actionSpan,
         parentSpanId: cellSpan,
         actionId: action.id,
-        actionType: action.kind === 'unsupported' ? action.type : action.kind,
-        reason: !action.enabled ? 'disabled' : 'unsupported',
+        actionType: action.kind === "unsupported" ? action.type : action.kind,
+        reason: !action.enabled ? "disabled" : "unsupported",
       });
       continue;
     }
 
     emitter.emit({
-      type: 'action_started',
+      type: "action_started",
       spanId: actionSpan,
       parentSpanId: cellSpan,
       actionId: action.id,
@@ -171,30 +187,41 @@ function executeCell(
     const source: MutationSource = { cellId: cell.cellId, actionId: action.id };
 
     const mutate = (key: string, after: Value, ruleIdx?: number) => {
-      const before = Object.prototype.hasOwnProperty.call(payload, key) ? payload[key]! : null;
+      const before = Object.prototype.hasOwnProperty.call(payload, key)
+        ? payload[key]!
+        : null;
       payload[key] = after;
       emitter.emit({
-        type: 'payload_mutated',
+        type: "payload_mutated",
         spanId: actionSpan,
         parentSpanId: cellSpan,
         key,
-        before: capture === 'full' ? before : undefined,
-        after: capture === 'full' ? after : undefined,
+        before: capture === "full" ? before : undefined,
+        after: capture === "full" ? after : undefined,
         source: ruleIdx === undefined ? source : { ...source, ruleIdx },
       });
     };
 
     switch (action.kind) {
-      case 'table_rule': {
+      case "table_rule": {
         for (let ruleIdx = 0; ruleIdx < action.rules.length; ruleIdx++) {
           const rule = action.rules[ruleIdx]!;
-          const conditionResults: ConditionResult[] = rule.conditions.map(({ key, condition }) => {
-            const actual = Object.prototype.hasOwnProperty.call(payload, key) ? payload[key]! : null;
-            return { key, expected: condition.source, actual, pass: condition.test(actual) };
-          });
+          const conditionResults: ConditionResult[] = rule.conditions.map(
+            ({ key, condition }) => {
+              const actual = Object.prototype.hasOwnProperty.call(payload, key)
+                ? payload[key]!
+                : null;
+              return {
+                key,
+                expected: condition.source,
+                actual,
+                pass: condition.test(actual),
+              };
+            },
+          );
           const matched = conditionResults.every((c) => c.pass);
           emitter.emit({
-            type: 'rule_evaluated',
+            type: "rule_evaluated",
             spanId: actionSpan,
             parentSpanId: cellSpan,
             ruleIdx,
@@ -207,7 +234,7 @@ function executeCell(
           for (const m of rule.mutations) mutate(m.key, m.value, ruleIdx);
           if (rule.emitEvent) {
             emitter.emit({
-              type: 'event_emitted',
+              type: "event_emitted",
               spanId: actionSpan,
               parentSpanId: cellSpan,
               eventName: rule.emitEvent.eventName,
@@ -215,21 +242,31 @@ function executeCell(
               source: { ...source, ruleIdx },
             });
           }
-          if (action.hitPolicy === 'first_match') break;
+          if (action.hitPolicy === "first_match") break;
         }
-        emitter.emit({ type: 'action_completed', spanId: actionSpan, parentSpanId: cellSpan, actionId: action.id });
+        emitter.emit({
+          type: "action_completed",
+          spanId: actionSpan,
+          parentSpanId: cellSpan,
+          actionId: action.id,
+        });
         break;
       }
 
-      case 'expression': {
+      case "expression": {
         try {
           const result = evaluate(action.ast, scopeFromObject(payload));
           mutate(action.outputVariable, result);
-          emitter.emit({ type: 'action_completed', spanId: actionSpan, parentSpanId: cellSpan, actionId: action.id });
+          emitter.emit({
+            type: "action_completed",
+            spanId: actionSpan,
+            parentSpanId: cellSpan,
+            actionId: action.id,
+          });
         } catch (e) {
           failed = true;
           emitter.emit({
-            type: 'action_failed',
+            type: "action_failed",
             spanId: actionSpan,
             parentSpanId: cellSpan,
             actionId: action.id,
@@ -239,27 +276,32 @@ function executeCell(
         break;
       }
 
-      case 'event_emitter': {
+      case "event_emitter": {
         emitter.emit({
-          type: 'event_emitted',
+          type: "event_emitted",
           spanId: actionSpan,
           parentSpanId: cellSpan,
           eventName: action.eventName,
           payload: action.payload,
           source,
         });
-        emitter.emit({ type: 'action_completed', spanId: actionSpan, parentSpanId: cellSpan, actionId: action.id });
+        emitter.emit({
+          type: "action_completed",
+          spanId: actionSpan,
+          parentSpanId: cellSpan,
+          actionId: action.id,
+        });
         break;
       }
     }
   }
 
   emitter.emit({
-    type: 'cell_completed',
+    type: "cell_completed",
     spanId: cellSpan,
     parentSpanId: columnSpan,
     cellId: cell.cellId,
-    status: failed ? 'fail' : 'success',
+    status: failed ? "fail" : "success",
     latencyUs: Math.max(1, host.now() - cellStart),
   });
 

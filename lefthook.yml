@@ -1,0 +1,27 @@
+# Lefthook Monorepo Configuration
+# Docs: https://lefthook.dev/configuration/
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: format-and-organize-imports
+      glob: "*.{ts,tsx,json,md,js,jsx}"
+      run: pnpm prettier --write {staged_files} && git add {staged_files}
+
+    - name: check-types
+      run: pnpm check-types
+
+    - name: lint
+      run: pnpm lint
+
+    # Future Rust Engine Support (uncomment when adding .rs crates):
+    # - name: rust-fmt
+    #   glob: "*.rs"
+    #   run: cargo fmt --check
+
+pre-push:
+  jobs:
+    - name: unit-tests
+      run: pnpm turbo run test
+      # Future Rust Engine Support:
+      # run: pnpm turbo run test && cargo test

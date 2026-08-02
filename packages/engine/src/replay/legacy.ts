@@ -1,13 +1,13 @@
-import { ExecutionLog } from '../events/types';
-import { Value } from '../lang/value';
+import { ExecutionLog } from "../events/types";
+import { Value } from "../lang/value";
 import {
   CellActionType,
   CellResult,
   EmittedCellEvent,
   ReplayEventLog,
   StepEvaluationRecord,
-} from '../schema/matrix-schema';
-import { Diagnostic } from '../compile/diagnostics';
+} from "../schema/matrix-schema";
+import { Diagnostic } from "../compile/diagnostics";
 
 /** Result shape consumed by the frontend time-travel debugger & execution inspector. */
 export interface MatrixExecutionResult {
@@ -28,7 +28,9 @@ export interface MatrixExecutionResult {
  *
  * Requires a log captured with `capture: 'full'`.
  */
-export function toLegacyExecutionResult(log: ExecutionLog): MatrixExecutionResult {
+export function toLegacyExecutionResult(
+  log: ExecutionLog,
+): MatrixExecutionResult {
   const stepRecords: StepEvaluationRecord[] = [];
   const payload: Record<string, Value> = {};
 
@@ -38,8 +40,8 @@ export function toLegacyExecutionResult(log: ExecutionLog): MatrixExecutionResul
   let lastTUs = 0;
   let hasErrors = false;
 
-  let currentColId = '';
-  let currentColLabel = '';
+  let currentColId = "";
+  let currentColLabel = "";
 
   interface OpenCell {
     cellId: string;
@@ -61,19 +63,20 @@ export function toLegacyExecutionResult(log: ExecutionLog): MatrixExecutionResul
     lastTUs = event.tUs;
 
     switch (event.type) {
-      case 'execution_started':
+      case "execution_started":
         executionId = event.executionId;
         matrixId = event.matrixId;
         wallStartMs = event.wallStartMs;
-        if (event.input) for (const [k, v] of Object.entries(event.input)) payload[k] = v;
+        if (event.input)
+          for (const [k, v] of Object.entries(event.input)) payload[k] = v;
         break;
 
-      case 'column_started':
+      case "column_started":
         currentColId = event.colId;
         currentColLabel = event.colLabel;
         break;
 
-      case 'cell_started':
+      case "cell_started":
         open = {
           cellId: event.cellId,
           rowId: event.rowId,
@@ -88,31 +91,31 @@ export function toLegacyExecutionResult(log: ExecutionLog): MatrixExecutionResul
         };
         break;
 
-      case 'action_started':
+      case "action_started":
         open?.actionTypes.push(event.actionType);
         break;
 
-      case 'action_skipped':
+      case "action_skipped":
         open?.actionTypes.push(event.actionType);
         break;
 
-      case 'action_failed':
+      case "action_failed":
         hasErrors = true;
         if (open && open.error === undefined) open.error = event.error;
         break;
 
-      case 'rule_evaluated':
+      case "rule_evaluated":
         if (event.matched) open?.matchedRules.push(event.ruleIdx);
         break;
 
-      case 'payload_mutated': {
+      case "payload_mutated": {
         const after = event.after === undefined ? null : event.after;
         payload[event.key] = after;
         if (open) open.mutatedPayload[event.key] = after;
         break;
       }
 
-      case 'event_emitted':
+      case "event_emitted":
         if (open) {
           open.emittedEvents.push({
             eventName: event.eventName,
@@ -124,17 +127,21 @@ export function toLegacyExecutionResult(log: ExecutionLog): MatrixExecutionResul
         }
         break;
 
-      case 'cell_completed': {
+      case "cell_completed": {
         if (!open) break;
         const cellResult: CellResult = {
           cellId: open.cellId,
           rowId: open.rowId,
           colId: open.colId,
-          action: (open.actionTypes[0] as CellActionType) ?? 'passthrough',
+          action: (open.actionTypes[0] as CellActionType) ?? "passthrough",
           status: event.status,
           mutatedPayload: open.mutatedPayload,
-          emittedEvents: open.emittedEvents.length ? open.emittedEvents : undefined,
-          matchedRules: open.matchedRules.length ? open.matchedRules : undefined,
+          emittedEvents: open.emittedEvents.length
+            ? open.emittedEvents
+            : undefined,
+          matchedRules: open.matchedRules.length
+            ? open.matchedRules
+            : undefined,
           error: open.error,
           latencyMs: Math.max(1, Math.round(event.latencyUs / 1000)),
         };
@@ -152,7 +159,7 @@ export function toLegacyExecutionResult(log: ExecutionLog): MatrixExecutionResul
         break;
       }
 
-      case 'execution_failed':
+      case "execution_failed":
         hasErrors = true;
         break;
 

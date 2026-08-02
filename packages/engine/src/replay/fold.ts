@@ -1,13 +1,16 @@
-import { ExecutionEvent, ExecutionLog } from '../events/types';
-import { Value } from '../lang/value';
+import { ExecutionEvent, ExecutionLog } from "../events/types";
+import { Value } from "../lang/value";
 
 const CHECKPOINT_INTERVAL = 256;
 
 /** Apply a single event to a payload state. Only mutation-bearing events matter. */
-export function applyEvent(state: Record<string, Value>, event: ExecutionEvent): void {
-  if (event.type === 'execution_started' && event.input) {
+export function applyEvent(
+  state: Record<string, Value>,
+  event: ExecutionEvent,
+): void {
+  if (event.type === "execution_started" && event.input) {
     for (const [k, v] of Object.entries(event.input)) state[k] = v;
-  } else if (event.type === 'payload_mutated') {
+  } else if (event.type === "payload_mutated") {
     state[event.key] = event.after === undefined ? null : event.after;
   }
 }
@@ -43,7 +46,10 @@ export function createReplay(log: ExecutionLog): Replay {
     stateAtSeq(seq: number): Record<string, Value> {
       const clamped = Math.min(Math.max(seq, -1), log.events.length - 1);
       if (clamped < 0) return {};
-      let ckptIdx = Math.min(Math.floor(clamped / CHECKPOINT_INTERVAL), checkpoints.length - 1);
+      let ckptIdx = Math.min(
+        Math.floor(clamped / CHECKPOINT_INTERVAL),
+        checkpoints.length - 1,
+      );
       // A checkpoint stores state BEFORE its seq — start from the one at or before clamped
       while (ckptIdx > 0 && checkpoints[ckptIdx]!.seq > clamped) ckptIdx--;
       const ckpt = checkpoints[ckptIdx]!;
