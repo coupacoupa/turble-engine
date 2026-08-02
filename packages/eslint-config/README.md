@@ -1,3 +1,3 @@
-# `@turbo/eslint-config`
+# `@repo/eslint-config`
 
-Collection of internal eslint configurations.
+Shared ESLint configuration for the **Turble Engine** monorepo (`base`, `react-internal`, and `next-js`).

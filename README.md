@@ -1,159 +1,82 @@
-# Turborepo starter
+# Turble Engine
 
-This Turborepo starter is maintained by the Turborepo core team.
+**Turble Engine** is a fast, observable, and deterministic 2D matrix workflow execution engine. It includes a visual matrix editor, a Connect-RPC backend service, and a zero-dependency execution runtime.
 
-## Using this example
+---
 
-Run the following command:
+## 🏗️ Monorepo Architecture
 
-```sh
-npx create-turbo@latest
+This monorepo is managed with **pnpm workspaces** and **Turborepo**.
+
+```
+turble-engine/
+├── apps/
+│   ├── web/               # Visual 2D Matrix Workflow Builder (Vite + React 19)
+│   ├── backend/           # Connect-RPC Node.js Backend Service
+│   └── docs/              # Next.js 16 Documentation Portal
+├── packages/
+│   ├── engine/            # Core Engine: TEL parser, Compiler, Interpreter & Replay
+│   ├── proto/             # Protobuf schemas & Connect-RPC generated types
+│   ├── ui/                # Shared React UI components
+│   ├── eslint-config/     # Shared ESLint configuration
+│   └── typescript-config/ # Shared TypeScript configuration
+└── lefthook.yml           # Automated Pre-Commit & Pre-Push Git Hooks
 ```
 
-## What's inside?
+---
 
-This Turborepo includes the following packages/apps:
+## 🚀 Quick Start
 
-### Apps and Packages
+### Installation
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+```bash
+pnpm install
 ```
 
-Without global `turbo`, use your package manager:
+This automatically binds **Lefthook** Git hooks (`prepare` script).
 
-```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+### Development
+
+Run all applications and services in parallel:
+
+```bash
+pnpm dev
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+Or target specific apps:
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
+```bash
+pnpm dev:web      # Start web workflow builder (http://localhost:3000)
+pnpm dev:backend  # Start Connect-RPC server (http://localhost:8080)
+pnpm dev:app      # Start web + backend together
 ```
 
-Without global `turbo`:
+---
 
-```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
+## 🛠️ CLI Commands
 
-### Develop
+| Command            | Description                                        |
+| :----------------- | :------------------------------------------------- |
+| `pnpm build`       | Build all packages and applications                |
+| `pnpm test`        | Run unit tests across all packages (`vitest`)      |
+| `pnpm check-types` | Run TypeScript type checks across all packages     |
+| `pnpm lint`        | Run ESLint across all packages                     |
+| `pnpm format`      | Auto-format code and organize imports (`prettier`) |
 
-To develop all apps and packages, run the following command:
+---
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+## 🔒 Automated Pre-Commit Workflow (Lefthook)
 
-```sh
-cd my-turborepo
-turbo dev
-```
+This repository uses **Lefthook** to automate code quality gates before commits:
 
-Without global `turbo`, use your package manager:
+- **Pre-commit**:
+  - Automatically formats code and cleans/organizes imports on staged files (`prettier-plugin-organize-imports`).
+  - Runs type checking (`check-types`) and linting (`lint`).
+- **Pre-push**:
+  - Runs unit tests (`pnpm test`) before pushing to remote branches.
 
-```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
-```
+---
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+## 🦀 Future Rust Engine Architecture
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+The core `@repo/engine` interface (`compileMatrix`, `executeMatrixSync`, `ExecutionLog`) is explicitly designed as a deterministic event-sourced contract. This contract enables seamless replacement or acceleration via a **Rust WebAssembly / FFI engine** without altering frontend or Connect-RPC API layers.
