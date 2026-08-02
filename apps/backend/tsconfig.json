@@ -4,13 +4,13 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
     "noEmit": true,
     "skipLibCheck": true,
-    "strict": true
+    "strict": true,
+    "types": ["node"]
   },
   "include": ["src/**/*"]
 }
