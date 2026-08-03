@@ -1,5 +1,5 @@
-import { createClient } from "@connectrpc/connect";
 import { create } from "@bufbuild/protobuf";
+import { callUnaryMethod } from "@connectrpc/connect-query";
 import { connectTransport } from "@/api/transport";
 import {
   MatrixEvaluatorService,
@@ -16,12 +16,6 @@ import type {
 
 /** Result shape consumed by the frontend time-travel debugger & execution inspector */
 export type { MatrixExecutionResult };
-
-/** Singleton Connect RPC client instance for MatrixEvaluatorService */
-export const matrixEvaluatorClient = createClient(
-  MatrixEvaluatorService,
-  connectTransport,
-);
 
 /** Map protobuf CellActionType enum to local string union */
 function mapCellAction(protoAction: number): CellActionType {
@@ -112,7 +106,9 @@ export class MatrixEvaluatorConnectService {
       return evaluateMatrix(matrix, initialPayload);
     }
 
-    const response = await matrixEvaluatorClient.executeMatrix(
+    const response = await callUnaryMethod(
+      connectTransport,
+      MatrixEvaluatorService.method.executeMatrix,
       create(ExecuteMatrixRequestSchema, {
         matrixId: matrix,
         initialPayloadJson: JSON.stringify(initialPayload),

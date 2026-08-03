@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useMutation } from "@tanstack/react-query";
 import {
   MatrixSchema,
   DomainRowSchema,
@@ -110,10 +111,19 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
 
   // Modals & Replay state
   const [isValidating, setIsValidating] = useState(false);
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [executionResult, setExecutionResult] = useState<
-    MatrixExecutionResult | undefined
-  >();
+  const executeMatrixMutation = useMutation({
+    mutationFn: (variables: {
+      matrix: MatrixSchema;
+      inputPayload: Record<string, any>;
+    }) =>
+      MatrixEvaluatorConnectService.executeMatrix(
+        variables.matrix,
+        variables.inputPayload,
+      ),
+  });
+  const isExecuting = executeMatrixMutation.isPending;
+  const executionResult: MatrixExecutionResult | undefined =
+    executeMatrixMutation.data;
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
   // Sync with storage on change
@@ -775,18 +785,16 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
     inputPayload: Record<string, any>,
   ): Promise<MatrixExecutionResult> => {
     if (!matrix) throw new Error("No matrix loaded");
-    setIsExecuting(true);
     setShowFlows(true);
     try {
       localStorage.setItem("turble_show_flows", "true");
     } catch {}
 
     try {
-      const res = await MatrixEvaluatorConnectService.executeMatrix(
+      const res = await executeMatrixMutation.mutateAsync({
         matrix,
         inputPayload,
-      );
-      setExecutionResult(res);
+      });
       setCurrentStepIndex(
         Math.max(0, (res.eventLog?.stepRecords?.length ?? 1) - 1),
       );
@@ -795,8 +803,6 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
     } catch (err) {
       console.error("[Execute] Execution call failed:", err);
       throw err;
-    } finally {
-      setIsExecuting(false);
     }
   };
 

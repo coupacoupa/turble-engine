@@ -1,40 +1,38 @@
-import http from "node:http";
-import { connectNodeAdapter } from "@connectrpc/connect-node";
+import { serve } from "@hono/node-server";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { logger } from "hono/logger";
+import { mountConnectRouter } from "@/connect-hono.adapter";
 import { authInterceptor } from "@/interceptors/auth.interceptor";
 import { registerConnectRoutes } from "@/router";
 
 const PORT = 8080;
 
-// Create Connect Node HTTP request listener
-const handler = connectNodeAdapter({
-  routes: registerConnectRoutes,
+const app = new Hono();
+
+app.use(logger());
+app.use(
+  cors({
+    origin: "*",
+    allowMethods: ["POST", "GET", "OPTIONS"],
+    allowHeaders: [
+      "Content-Type",
+      "Connect-Protocol-Version",
+      "Authorization",
+      "x-user-id",
+    ],
+    exposeHeaders: ["Grpc-Status", "Grpc-Message", "Connect-Content-Encoding"],
+  }),
+);
+
+app.get("/healthz", (c) => c.json({ status: "ok" }));
+
+mountConnectRouter(app, registerConnectRoutes, {
   interceptors: [authInterceptor],
 });
 
-// Create HTTP server with CORS headers for browser requests
-const server = http.createServer((req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Connect-Protocol-Version, Authorization, x-user-id",
-  );
-  res.setHeader(
-    "Access-Control-Expose-Headers",
-    "Grpc-Status, Grpc-Message, Connect-Content-Encoding",
-  );
-
-  if (req.method === "OPTIONS") {
-    res.writeHead(204);
-    res.end();
-    return;
-  }
-
-  handler(req, res);
-});
-
-server.listen(PORT, () => {
+serve({ fetch: app.fetch, port: PORT }, (info) => {
   console.log(
-    `🚀 Connect-RPC Backend Engine listening on http://localhost:${PORT}`,
+    `🚀 Connect-RPC Backend Engine (Hono) listening on http://localhost:${info.port}`,
   );
 });
