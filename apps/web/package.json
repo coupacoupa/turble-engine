@@ -15,6 +15,7 @@
     "@connectrpc/connect-query": "^2.2.0",
     "@connectrpc/connect-web": "^2.1.2",
     "@fontsource-variable/geist": "^5.3.0",
+    "@neondatabase/neon-js": "0.6.2-beta",
     "@repo/engine": "workspace:*",
     "@repo/proto": "workspace:*",
     "@repo/ui": "workspace:*",

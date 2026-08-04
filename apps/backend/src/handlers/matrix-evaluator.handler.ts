@@ -1,5 +1,6 @@
 import { create } from "@bufbuild/protobuf";
-import type { ServiceImpl } from "@connectrpc/connect";
+import type { HandlerContext, ServiceImpl } from "@connectrpc/connect";
+import { kUser } from "@/interceptors/auth.interceptor";
 import {
   CellResult,
   evaluateMatrix,
@@ -112,8 +113,11 @@ function mapProtoMatrixSchemaToEngine(protoSchema: any): MatrixSchema {
 export const matrixEvaluatorHandler: ServiceImpl<
   typeof MatrixEvaluatorService
 > = {
-  async executeMatrix(req: ExecuteMatrixRequest) {
-    console.log(`[Handler] Executing Matrix RPC for ID: ${req.matrixId}`);
+  async executeMatrix(req: ExecuteMatrixRequest, ctx: HandlerContext) {
+    const user = ctx.values.get(kUser);
+    console.log(
+      `[Handler] Executing Matrix RPC for ID: ${req.matrixId} | user: ${user?.email ?? user?.id}`,
+    );
 
     if (!req.matrixSchema) {
       return create(ExecuteMatrixResponseSchema, {

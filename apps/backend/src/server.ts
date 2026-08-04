@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -7,20 +8,18 @@ import { authInterceptor } from "@/interceptors/auth.interceptor";
 import { registerConnectRoutes } from "@/router";
 
 const PORT = 8080;
+const WEB_ORIGIN = process.env.WEB_ORIGIN ?? "http://localhost:3000";
 
 const app = new Hono();
 
 app.use(logger());
+// Auth endpoints are hosted by Neon Auth; RPCs authenticate via a Bearer JWT
+// verified against Neon's JWKS in the auth interceptor.
 app.use(
   cors({
-    origin: "*",
+    origin: WEB_ORIGIN,
     allowMethods: ["POST", "GET", "OPTIONS"],
-    allowHeaders: [
-      "Content-Type",
-      "Connect-Protocol-Version",
-      "Authorization",
-      "x-user-id",
-    ],
+    allowHeaders: ["Content-Type", "Connect-Protocol-Version", "Authorization"],
     exposeHeaders: ["Grpc-Status", "Grpc-Message", "Connect-Content-Encoding"],
   }),
 );

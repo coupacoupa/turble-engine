@@ -1,5 +1,6 @@
 import React from "react";
-import { Layers, Plus, Play, ArrowLeft, Cpu } from "lucide-react";
+import { Plus, Play, ArrowLeft, Cpu } from "lucide-react";
+import { UserButton } from "@neondatabase/neon-js/auth/react/ui";
 
 interface AppHeaderProps {
   activeMatrixName?: string;
@@ -77,6 +78,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             <span>New Workflow Matrix</span>
           </button>
         )}
+
+        {/* Account menu (profile, settings, sign out) */}
+        <UserButton size="icon" />
       </div>
     </header>
   );
