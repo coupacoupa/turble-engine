@@ -1,15 +1,9 @@
 export type RowType = "standard" | "workflow";
 
 export type PlainCellAction =
-  | "table_rule"
-  | "expression"
-  | "api_call"
-  | "event_emitter"
-  | "passthrough";
+  "table_rule" | "expression" | "api_call" | "event_emitter" | "passthrough";
 export type WorkflowCellAction =
-  | "trigger_sub_workflow"
-  | "override_sub_workflow"
-  | "skip_sub_workflow";
+  "trigger_sub_workflow" | "override_sub_workflow" | "skip_sub_workflow";
 
 export type CellActionType = PlainCellAction | WorkflowCellAction;
 
@@ -50,6 +44,8 @@ export interface SubWorkflowTriggerConfig {
   inputMapping: Record<string, string>;
   outputMapping: Record<string, string>;
   parameterOverrides?: Record<string, any>;
+  /** Pinned published version of the referenced sub-workflow. */
+  subWorkflowVersion?: number;
 }
 
 export interface CellActionItem {
@@ -94,15 +90,13 @@ export interface DomainRowSchema {
   order: number;
   type: RowType;
   subWorkflowId?: string;
+  /** Pinned published version of the referenced sub-workflow. */
+  subWorkflowVersion?: number;
   isInterceptor?: boolean;
 }
 
 export type InputValueType =
-  | "string"
-  | "number"
-  | "boolean"
-  | "object"
-  | "array";
+  "string" | "number" | "boolean" | "object" | "array";
 
 export interface WorkflowInputField {
   id: string;
@@ -124,7 +118,12 @@ export interface MatrixSchema {
   id: string;
   name: string;
   description?: string;
-  version: string;
+  /**
+   * Legacy display version. Real versioning lives in the database
+   * (workflow_versions.version_number) — this field is optional and ignored
+   * by the engine beyond plan metadata.
+   */
+  version?: string;
   columns: StepColumnSchema[];
   rows: DomainRowSchema[];
   cells: Record<string, CellSchema>;

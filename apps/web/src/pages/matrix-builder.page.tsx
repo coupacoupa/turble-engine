@@ -1,5 +1,11 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useMutation } from "@tanstack/react-query";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   MatrixSchema,
   DomainRowSchema,
@@ -12,7 +18,7 @@ import {
   MatrixEvaluatorConnectService,
   type MatrixExecutionResult,
 } from "@/services/matrix-evaluator.service";
-import { WorkflowStorageService } from "@/services/workflow-storage.service";
+import { WorkflowApiService } from "@/services/workflow-api.service";
 import { SpreadsheetToolbar } from "@/components/workflow-editor/spreadsheet-toolbar.component";
 import {
   MatrixSheet,
@@ -46,8 +52,75 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
   workflowId,
   onBackToDashboard,
 }) => {
-  const [matrix, setMatrix] = useState<MatrixSchema | undefined>(() =>
-    WorkflowStorageService.getById(workflowId),
+  const queryClient = useQueryClient();
+
+  // Draft loaded once from the DB; local state is the working copy and is
+  // autosaved back (debounced) below — refetches never clobber local edits.
+  const workflowQuery = useQuery({
+    queryKey: ["workflow", workflowId],
+    queryFn: () => WorkflowApiService.get(workflowId),
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+  const subWorkflowsQuery = useQuery({
+    queryKey: ["workflows"],
+    queryFn: WorkflowApiService.list,
+  });
+
+  const [matrix, setMatrix] = useState<MatrixSchema | undefined>(undefined);
+  /** Serialized form of the last state persisted (or in flight) to the DB. */
+  const lastSavedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (workflowQuery.data && matrix === undefined) {
+      setMatrix(workflowQuery.data.matrix);
+      lastSavedRef.current = JSON.stringify(workflowQuery.data.matrix);
+    }
+  }, [workflowQuery.data, matrix]);
+
+  const saveDraftMutation = useMutation({
+    mutationFn: (m: MatrixSchema) =>
+      WorkflowApiService.saveDraft(workflowId, m),
+    onSuccess: ({ record }) => {
+      queryClient.setQueryData(["workflow", workflowId], record);
+      queryClient.invalidateQueries({ queryKey: ["workflows"] });
+    },
+    onError: () => {
+      // Force a retry on the next edit instead of silently dropping changes.
+      lastSavedRef.current = null;
+    },
+  });
+
+  const publishMutation = useMutation({
+    mutationFn: () => WorkflowApiService.publish(workflowId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflow", workflowId] });
+      queryClient.invalidateQueries({ queryKey: ["workflows"] });
+    },
+    onError: (err) => {
+      window.alert(err instanceof Error ? err.message : String(err));
+    },
+  });
+  const latestVersion =
+    publishMutation.data?.versionNumber ??
+    workflowQuery.data?.latestVersion ??
+    0;
+
+  // Sub-workflow picker options — summaries only (the modal reads id + name).
+  const availableSubWorkflows = useMemo<MatrixSchema[]>(
+    () =>
+      (subWorkflowsQuery.data ?? [])
+        .filter((w) => w.id !== workflowId)
+        .map((w) => ({
+          id: w.id,
+          name: w.name,
+          description: w.description,
+          columns: [],
+          rows: [],
+          cells: {},
+        })),
+    [subWorkflowsQuery.data, workflowId],
   );
 
   // Drawer selection & dependency graph state
@@ -126,12 +199,36 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
     executeMatrixMutation.data;
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
-  // Sync with storage on change
+  // Debounced autosave to the DB. The backend diffs old vs. new draft and
+  // records an RFC 6902 patch event only when something actually changed.
   useEffect(() => {
-    if (matrix) {
-      WorkflowStorageService.save(matrix);
-    }
+    if (!matrix) return;
+    const serialized = JSON.stringify(matrix);
+    if (serialized === lastSavedRef.current) return;
+    const timer = setTimeout(() => {
+      lastSavedRef.current = serialized;
+      saveDraftMutation.mutate(matrix);
+    }, 800);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matrix]);
+
+  // Publish flushes any pending draft edits first so the snapshot is current.
+  const handlePublish = useCallback(async () => {
+    if (!matrix || publishMutation.isPending) return;
+    const serialized = JSON.stringify(matrix);
+    if (serialized !== lastSavedRef.current) {
+      lastSavedRef.current = serialized;
+      try {
+        await saveDraftMutation.mutateAsync(matrix);
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : String(err));
+        return;
+      }
+    }
+    publishMutation.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matrix, publishMutation.isPending]);
 
   // Copy Cell Handler (Ctrl+C / Cmd+C)
   const handleCopyCell = useCallback(() => {
@@ -234,24 +331,6 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
     setActiveDependencies([]);
   }, []);
 
-  if (!matrix) {
-    return (
-      <div className="h-screen w-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
-        <div className="text-center space-y-3">
-          <p className="text-sm font-semibold text-slate-700">
-            Workflow Matrix not found.
-          </p>
-          <button
-            onClick={onBackToDashboard}
-            className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-bold shadow-sm cursor-pointer"
-          >
-            Back to Dashboard
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // Title & Description Editing Handlers
   const handleUpdateName = (name: string) => {
     setMatrix((prev) => (prev ? { ...prev, name } : prev));
@@ -267,20 +346,22 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
 
   // Direct Sub-Workflow Matrix Creation Handler
   const handleCreateSubWorkflow = () => {
-    const subId = `wf_sub_${Date.now()}`;
-    const newSub: MatrixSchema = {
-      id: subId,
+    WorkflowApiService.create({
       name: "Untitled Sub-Workflow Matrix",
       description: "Sub-workflow matrix capability.",
-      version: "1.0.0",
       columns: [],
       rows: [],
       cells: {},
-    };
-    WorkflowStorageService.save(newSub);
-    if (selectedRow) {
-      handleSelectSubWorkflow(subId);
-    }
+    })
+      .then((record) => {
+        queryClient.invalidateQueries({ queryKey: ["workflows"] });
+        if (selectedRow) {
+          handleSelectSubWorkflow(record.id);
+        }
+      })
+      .catch((err) => {
+        window.alert(err instanceof Error ? err.message : String(err));
+      });
   };
 
   // Cell Single Click Selection Handler — Traces Incoming & Outgoing Dependencies Directly on Sheet
@@ -640,6 +721,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
 
   // Add Column Handler
   const handleAddColumn = () => {
+    if (!matrix) return;
     const newColOrder = matrix.columns.length;
     const newColId = `col_${Date.now()}`;
     const newCol: StepColumnSchema = {
@@ -658,6 +740,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
 
   // Add Row Handler
   const handleAddRow = (type: RowType) => {
+    if (!matrix) return;
     const newRowOrder = matrix.rows.length;
     const newRowId = `row_${Date.now()}`;
     const newRow: DomainRowSchema = {
@@ -702,19 +785,29 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
     });
   };
 
-  // Select Sub-Workflow Handler
+  // Select Sub-Workflow Handler — pins the target's latest published version
+  // at selection time (publishing requires a pinned, published version).
   const handleSelectSubWorkflow = (subWorkflowId: string) => {
     if (!selectedRow) return;
+    const summary = (subWorkflowsQuery.data ?? []).find(
+      (w) => w.id === subWorkflowId,
+    );
+    const subWorkflowVersion =
+      summary && summary.latestVersion > 0 ? summary.latestVersion : undefined;
     setMatrix((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
         rows: prev.rows.map((r) =>
-          r.id === selectedRow.id ? { ...r, subWorkflowId } : r,
+          r.id === selectedRow.id
+            ? { ...r, subWorkflowId, subWorkflowVersion }
+            : r,
         ),
       };
     });
-    setSelectedRow((prev) => (prev ? { ...prev, subWorkflowId } : prev));
+    setSelectedRow((prev) =>
+      prev ? { ...prev, subWorkflowId, subWorkflowVersion } : prev,
+    );
   };
 
   // Delete Column Handler
@@ -730,6 +823,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
 
   // Export JSON Schema Handler
   const handleExportJson = () => {
+    if (!matrix) return;
     const jsonStr = JSON.stringify(matrix, null, 2);
     const blob = new Blob([jsonStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -939,6 +1033,35 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
     hoveredVariableKey,
   ]);
 
+  if (!matrix) {
+    return (
+      <div className="h-screen w-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
+        <div className="text-center space-y-3">
+          <p className="text-sm font-semibold text-slate-700">
+            {workflowQuery.isPending
+              ? "Loading workflow matrix…"
+              : "Workflow Matrix not found."}
+          </p>
+          {workflowQuery.isError && (
+            <p className="text-xs text-rose-600 font-mono wrap-break-word max-w-md">
+              {workflowQuery.error instanceof Error
+                ? workflowQuery.error.message
+                : String(workflowQuery.error)}
+            </p>
+          )}
+          {!workflowQuery.isPending && (
+            <button
+              onClick={onBackToDashboard}
+              className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-bold shadow-sm cursor-pointer"
+            >
+              Back to Dashboard
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-100 font-sans overflow-hidden select-none">
       {/* 1. Header & Wireframe Toolbar Layout */}
@@ -954,6 +1077,18 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
         onBackToDashboard={onBackToDashboard}
         onOpenValidation={() => setIsValidating(true)}
         onExportJson={handleExportJson}
+        onPublish={handlePublish}
+        latestVersion={latestVersion}
+        isPublishing={publishMutation.isPending}
+        saveState={
+          saveDraftMutation.isError
+            ? "error"
+            : saveDraftMutation.isPending
+              ? "saving"
+              : saveDraftMutation.isSuccess
+                ? "saved"
+                : "idle"
+        }
         onUpdateInputs={handleUpdateInputs}
         isTestInspectorOpen={isInspectorModalOpen}
         onToggleTestInspector={() => setIsInspectorModalOpen((prev) => !prev)}
@@ -1011,7 +1146,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
         row={selectedRow}
         column={selectedCol}
         cell={selectedCell}
-        availableSubWorkflows={WorkflowStorageService.getAll()}
+        availableSubWorkflows={availableSubWorkflows}
         onSaveCell={handleSaveCell}
         onCreateMatrix={handleCreateSubWorkflow}
         onSelectSubWorkflow={handleSelectSubWorkflow}

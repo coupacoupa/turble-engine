@@ -36,6 +36,11 @@ interface SpreadsheetToolbarProps {
   onBackToDashboard: () => void;
   onOpenValidation: () => void;
   onExportJson: () => void;
+  onPublish?: () => void;
+  /** Highest published version; 0 = never published. */
+  latestVersion?: number;
+  isPublishing?: boolean;
+  saveState?: "idle" | "saving" | "saved" | "error";
   onUpdateInputs?: (inputs: WorkflowInputField[]) => void;
   showFlows?: boolean;
   onToggleFlows?: () => void;
@@ -55,6 +60,10 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
   onBackToDashboard,
   onOpenValidation,
   onExportJson,
+  onPublish,
+  latestVersion = 0,
+  isPublishing = false,
+  saveState = "idle",
   onUpdateInputs,
   showFlows = true,
   onToggleFlows,
@@ -323,6 +332,34 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
 
         {/* Right: Global Actions */}
         <div className="flex items-center space-x-2">
+          {/* Autosave indicator */}
+          <span
+            className={`text-[10px] font-mono font-semibold select-none ${
+              saveState === "error"
+                ? "text-rose-600"
+                : saveState === "saving"
+                  ? "text-slate-400"
+                  : "text-slate-300"
+            }`}
+            title="Draft autosave status"
+          >
+            {saveState === "saving"
+              ? "Saving…"
+              : saveState === "error"
+                ? "Save failed"
+                : saveState === "saved"
+                  ? "Saved"
+                  : ""}
+          </span>
+
+          {/* Published version badge */}
+          <span
+            className="text-[10px] font-mono bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded font-semibold select-none"
+            title="Latest published version"
+          >
+            {latestVersion > 0 ? `v${latestVersion}` : "draft"}
+          </span>
+
           <button
             onClick={onExportJson}
             className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-mono text-[11px] font-semibold transition-colors cursor-pointer shadow-2xs"
@@ -330,6 +367,17 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
           >
             <span>Export</span>
           </button>
+
+          {onPublish && (
+            <button
+              onClick={onPublish}
+              disabled={isPublishing}
+              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-mono text-[11px] font-bold transition-colors cursor-pointer shadow-2xs"
+              title="Publish an immutable version of the current draft"
+            >
+              <span>{isPublishing ? "Publishing…" : "Publish"}</span>
+            </button>
+          )}
         </div>
       </div>
 

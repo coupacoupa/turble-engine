@@ -24,8 +24,9 @@ export function mountConnectRouter(
 
   for (const uHandler of router.handlers) {
     const fetchHandler = createFetchHandler(uHandler);
-    app.on(uHandler.allowedMethods, uHandler.requestPath, (c) =>
-      fetchHandler(c.req.raw),
-    );
+    app.on(uHandler.allowedMethods, uHandler.requestPath, async (c) => {
+      const res = await fetchHandler(c.req.raw);
+      return new Response(res.body, res);
+    });
   }
 }

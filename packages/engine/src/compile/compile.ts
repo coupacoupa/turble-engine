@@ -297,7 +297,7 @@ export function compileMatrix(matrix: MatrixSchema): CompileResult {
 
   const plan: CompiledPlan = {
     matrixId: matrix.id,
-    matrixVersion: matrix.version,
+    matrixVersion: matrix.version ?? "draft",
     planHash: fnv1a(
       stableStringify({
         id: matrix.id,

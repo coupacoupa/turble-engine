@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Layers,
   Plus,
@@ -7,9 +8,9 @@ import {
   GitBranch,
   Trash2,
   FolderPlus,
+  Loader2,
 } from "lucide-react";
-import { MatrixSchema } from "@/types/matrix.types";
-import { WorkflowStorageService } from "@/services/workflow-storage.service";
+import { WorkflowApiService } from "@/services/workflow-api.service";
 import { AppHeader } from "@/components/layout/app-header.component";
 
 interface WorkflowDirectoryPageProps {
@@ -19,38 +20,51 @@ interface WorkflowDirectoryPageProps {
 export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({
   onOpenBuilder,
 }) => {
-  const [workflows, setWorkflows] = useState<MatrixSchema[]>([]);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    setWorkflows(WorkflowStorageService.getAll());
-  }, []);
+  const workflowsQuery = useQuery({
+    queryKey: ["workflows"],
+    queryFn: WorkflowApiService.list,
+  });
+  const workflows = workflowsQuery.data ?? [];
+
+  const createMutation = useMutation({
+    mutationFn: () =>
+      WorkflowApiService.create({
+        name: "Untitled Matrix Workflow",
+        description: "Newly initialized 2D decision matrix workflow.",
+        columns: [{ id: `col_${Date.now()}`, label: "Step 1", order: 0 }],
+        rows: [
+          {
+            id: `row_${Date.now()}`,
+            label: "Row #1",
+            order: 0,
+            type: "standard",
+          },
+        ],
+        cells: {},
+      }),
+    onSuccess: (record) => {
+      queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      onOpenBuilder(record.id);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => WorkflowApiService.delete(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["workflows"] }),
+    onError: (err) => {
+      window.alert(err instanceof Error ? err.message : String(err));
+    },
+  });
 
   const handleCreateWorkflow = () => {
-    const id = `wf_matrix_${Date.now()}`;
-    const newMatrix: MatrixSchema = {
-      id,
-      name: "Untitled Matrix Workflow",
-      description: "Newly initialized 2D decision matrix workflow.",
-      version: "1.0.0",
-      columns: [{ id: `col_${Date.now()}`, label: "Step 1", order: 0 }],
-      rows: [
-        {
-          id: `row_${Date.now()}`,
-          label: "Row #1",
-          order: 0,
-          type: "standard",
-        },
-      ],
-      cells: {},
-    };
-    WorkflowStorageService.save(newMatrix);
-    onOpenBuilder(newMatrix.id);
+    if (!createMutation.isPending) createMutation.mutate();
   };
 
   const handleDeleteWorkflow = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    WorkflowStorageService.delete(id);
-    setWorkflows(WorkflowStorageService.getAll());
+    deleteMutation.mutate(id);
   };
 
   return (
@@ -75,15 +89,41 @@ export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({
 
           <button
             onClick={handleCreateWorkflow}
-            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center space-x-2 shadow-sm transition-all cursor-pointer"
+            disabled={createMutation.isPending}
+            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold text-xs flex items-center space-x-2 shadow-sm transition-all cursor-pointer"
           >
-            <Plus className="h-4 w-4" />
+            {createMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
             <span>Create New Matrix</span>
           </button>
         </div>
 
-        {/* Workflow Cards Grid or Empty State */}
-        {workflows.length === 0 ? (
+        {/* Loading / Error / Empty / Grid */}
+        {workflowsQuery.isPending ? (
+          <div className="flex items-center justify-center py-24 text-slate-400">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        ) : workflowsQuery.isError ? (
+          <div className="p-8 border border-rose-200 rounded-2xl bg-rose-50 text-center max-w-md mx-auto my-12 space-y-2">
+            <h3 className="text-sm font-bold text-rose-700">
+              Failed to load workflows
+            </h3>
+            <p className="text-xs text-rose-600 font-mono wrap-break-word">
+              {workflowsQuery.error instanceof Error
+                ? workflowsQuery.error.message
+                : String(workflowsQuery.error)}
+            </p>
+            <button
+              onClick={() => workflowsQuery.refetch()}
+              className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
+        ) : workflows.length === 0 ? (
           <div className="p-12 border-2 border-dashed border-slate-200 rounded-2xl bg-white text-center space-y-4 max-w-md mx-auto my-12">
             <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto">
               <FolderPlus className="h-6 w-6" />
@@ -98,7 +138,8 @@ export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({
             </div>
             <button
               onClick={handleCreateWorkflow}
-              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs inline-flex items-center space-x-1.5 shadow-xs cursor-pointer"
+              disabled={createMutation.isPending}
+              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold text-xs inline-flex items-center space-x-1.5 shadow-xs cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
               <span>Create Matrix</span>
@@ -124,10 +165,13 @@ export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({
 
                     <div className="flex items-center space-x-1.5">
                       <span className="text-[10px] font-mono bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded font-semibold">
-                        v{wf.version}
+                        {wf.latestVersion > 0
+                          ? `v${wf.latestVersion}`
+                          : "draft"}
                       </span>
                       <button
                         onClick={(e) => handleDeleteWorkflow(wf.id, e)}
+                        disabled={deleteMutation.isPending}
                         className="text-slate-400 hover:text-rose-600 p-1 rounded hover:bg-slate-100 cursor-pointer transition-colors"
                         title="Delete Workflow"
                       >
@@ -143,10 +187,10 @@ export const WorkflowDirectoryPage: React.FC<WorkflowDirectoryPageProps> = ({
                   <div className="flex items-center space-x-4 text-[11px] font-mono text-slate-500 pt-2 border-t border-slate-100">
                     <div className="flex items-center space-x-1">
                       <GitBranch className="h-3.5 w-3.5 text-slate-400" />
-                      <span>{wf.columns.length} Steps</span>
+                      <span>{wf.columnCount} Steps</span>
                     </div>
                     <div>•</div>
-                    <div>{wf.rows.length} Rows</div>
+                    <div>{wf.rowCount} Rows</div>
                   </div>
                 </div>
 

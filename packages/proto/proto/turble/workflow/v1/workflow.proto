@@ -1,0 +1,190 @@
+syntax = "proto3";
+
+package turble.workflow.v1;
+
+// Workflow storage & versioning service. The matrix definition travels as a
+// self-contained MatrixSchema JSON document (`*_definition_json`) — the
+// engine contract is the source of truth, mirroring the JSONB storage model.
+// All RPCs are owner-scoped via the authenticated Neon Auth user.
+
+message WorkflowSummary {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  // Highest published version; 0 = never published.
+  int32 latest_version = 4;
+  int32 column_count = 5;
+  int32 row_count = 6;
+  int64 created_at_ms = 7;
+  int64 updated_at_ms = 8;
+}
+
+message Workflow {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  int32 latest_version = 4;
+  // Full MatrixSchema draft definition.
+  string draft_definition_json = 5;
+  int64 created_at_ms = 6;
+  int64 updated_at_ms = 7;
+}
+
+message WorkflowVersion {
+  string id = 1;
+  string workflow_id = 2;
+  int32 version_number = 3;
+  // Immutable, self-contained MatrixSchema snapshot.
+  string definition_json = 4;
+  string label = 5;
+  string notes = 6;
+  int64 published_at_ms = 7;
+}
+
+message WorkflowTestCase {
+  string id = 1;
+  string workflow_id = 2;
+  string name = 3;
+  string description = 4;
+  // Input variable map fed to the engine.
+  string inputs_json = 5;
+  // Expected subset of output variables; pass = every listed key matches.
+  string expected_json = 6;
+  int64 created_at_ms = 7;
+  int64 updated_at_ms = 8;
+}
+
+message WorkflowEvent {
+  int64 id = 1;
+  string workflow_id = 2;
+  string actor_id = 3;
+  // created | draft_saved | published | deleted | test_case_added |
+  // test_case_updated | test_case_deleted
+  string event_type = 4;
+  // For draft_saved: { "patch": <RFC 6902 JSON Patch> }.
+  string payload_json = 5;
+  int64 created_at_ms = 6;
+}
+
+message ListWorkflowsRequest {}
+
+message ListWorkflowsResponse {
+  repeated WorkflowSummary workflows = 1;
+}
+
+message GetWorkflowRequest {
+  string workflow_id = 1;
+}
+
+message GetWorkflowResponse {
+  Workflow workflow = 1;
+}
+
+message CreateWorkflowRequest {
+  string name = 1;
+  string description = 2;
+  // Optional initial MatrixSchema; server creates an empty matrix if omitted.
+  string definition_json = 3;
+}
+
+message CreateWorkflowResponse {
+  Workflow workflow = 1;
+}
+
+message SaveDraftRequest {
+  string workflow_id = 1;
+  string definition_json = 2;
+}
+
+message SaveDraftResponse {
+  Workflow workflow = 1;
+  // False when the definition was identical — no event was recorded.
+  bool changed = 2;
+}
+
+message PublishVersionRequest {
+  string workflow_id = 1;
+  string label = 2;
+  string notes = 3;
+}
+
+message PublishVersionResponse {
+  WorkflowVersion version = 1;
+}
+
+message DeleteWorkflowRequest {
+  string workflow_id = 1;
+}
+
+message DeleteWorkflowResponse {}
+
+message ListVersionsRequest {
+  string workflow_id = 1;
+}
+
+message ListVersionsResponse {
+  repeated WorkflowVersion versions = 1;
+}
+
+message GetVersionRequest {
+  string workflow_id = 1;
+  int32 version_number = 2;
+}
+
+message GetVersionResponse {
+  WorkflowVersion version = 1;
+}
+
+message ListEventsRequest {
+  string workflow_id = 1;
+  // Optional page size; server default/cap applies when 0.
+  int32 limit = 2;
+  // Return events with id strictly below this (0 = newest first).
+  int64 before_id = 3;
+}
+
+message ListEventsResponse {
+  repeated WorkflowEvent events = 1;
+}
+
+message ListTestCasesRequest {
+  string workflow_id = 1;
+}
+
+message ListTestCasesResponse {
+  repeated WorkflowTestCase test_cases = 1;
+}
+
+message SaveTestCaseRequest {
+  // Empty id = create; otherwise updates the existing test case.
+  WorkflowTestCase test_case = 1;
+}
+
+message SaveTestCaseResponse {
+  WorkflowTestCase test_case = 1;
+}
+
+message DeleteTestCaseRequest {
+  string workflow_id = 1;
+  string test_case_id = 2;
+}
+
+message DeleteTestCaseResponse {}
+
+service WorkflowService {
+  rpc ListWorkflows(ListWorkflowsRequest) returns (ListWorkflowsResponse);
+  rpc GetWorkflow(GetWorkflowRequest) returns (GetWorkflowResponse);
+  rpc CreateWorkflow(CreateWorkflowRequest) returns (CreateWorkflowResponse);
+  rpc SaveDraft(SaveDraftRequest) returns (SaveDraftResponse);
+  rpc PublishVersion(PublishVersionRequest) returns (PublishVersionResponse);
+  rpc DeleteWorkflow(DeleteWorkflowRequest) returns (DeleteWorkflowResponse);
+
+  rpc ListVersions(ListVersionsRequest) returns (ListVersionsResponse);
+  rpc GetVersion(GetVersionRequest) returns (GetVersionResponse);
+
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+
+  rpc ListTestCases(ListTestCasesRequest) returns (ListTestCasesResponse);
+  rpc SaveTestCase(SaveTestCaseRequest) returns (SaveTestCaseResponse);
+  rpc DeleteTestCase(DeleteTestCaseRequest) returns (DeleteTestCaseResponse);
+}
