@@ -12,6 +12,8 @@ export type { Scope } from "./lang/eval";
 export { TelSyntaxError, TelRuntimeError } from "./lang/errors";
 export { compileCondition, coerceMutationValue } from "./lang/condition";
 export type { CompiledCondition, ConditionOp } from "./lang/condition";
+export { BUILTIN_FUNCTIONS, FUNCTION_METADATA } from "./lang/functions";
+export type { FunctionMetadata } from "./lang/functions";
 
 // Compile
 export { compileMatrix } from "./compile/compile";

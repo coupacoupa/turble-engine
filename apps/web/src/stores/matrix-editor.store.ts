@@ -37,9 +37,14 @@ export interface MatrixEditorState {
   activeModal: EditorModal | null;
   isInspectorOpen: boolean;
 
-  // Execution Inspector & Hover State
+  // Execution Inspector & Hover State. The inspector mirrors the active test
+  // case's run here so the sheet can render it: `selectedStepIndex` is the
+  // committed selection, `hoveredStepIndex` is a transient preview that
+  // reverts to the selection on mouse-leave.
   testInputPayload: Record<string, any>;
-  hoveredStepRecord: StepEvaluationRecord | undefined;
+  executionSteps: StepEvaluationRecord[];
+  selectedStepIndex: number;
+  hoveredStepIndex: number | null;
   hoveredVariableKey: string | undefined;
 
   // Actions
@@ -94,7 +99,11 @@ export interface MatrixEditorState {
       | Record<string, any>
       | ((prev: Record<string, any>) => Record<string, any>),
   ) => void;
-  setHoveredStepRecord: (rec?: StepEvaluationRecord) => void;
+  setExecutionSteps: (
+    steps: StepEvaluationRecord[],
+    selectedIndex: number,
+  ) => void;
+  setHoveredStepIndex: (idx: number | null) => void;
   setHoveredVariableKey: (key?: string) => void;
 }
 
@@ -142,7 +151,9 @@ const initialEditorState = {
   activeModal: null,
   isInspectorOpen: false,
   testInputPayload: {},
-  hoveredStepRecord: undefined,
+  executionSteps: [],
+  selectedStepIndex: 0,
+  hoveredStepIndex: null,
   hoveredVariableKey: undefined,
 } satisfies Partial<MatrixEditorState>;
 
@@ -237,10 +248,18 @@ export const useMatrixEditorStore = create<MatrixEditorState>((set, get) => ({
   deleteRow: (rowId) =>
     set((state) => {
       if (!state.matrix) return {};
+      // Prune the deleted row's cells so validation/iteration never sees
+      // (and autosave never persists) orphaned entries.
+      const cells = Object.fromEntries(
+        Object.entries(state.matrix.cells).filter(
+          ([, cell]) => cell.rowId !== rowId,
+        ),
+      );
       return {
         matrix: {
           ...state.matrix,
           rows: state.matrix.rows.filter((r) => r.id !== rowId),
+          cells,
         },
         ...(state.selectedRowId === rowId
           ? { selectedRowId: null, selectedColId: null }
@@ -251,10 +270,16 @@ export const useMatrixEditorStore = create<MatrixEditorState>((set, get) => ({
   deleteColumn: (colId) =>
     set((state) => {
       if (!state.matrix) return {};
+      const cells = Object.fromEntries(
+        Object.entries(state.matrix.cells).filter(
+          ([, cell]) => cell.colId !== colId,
+        ),
+      );
       return {
         matrix: {
           ...state.matrix,
           columns: state.matrix.columns.filter((c) => c.id !== colId),
+          cells,
         },
         ...(state.selectedColId === colId
           ? { selectedRowId: null, selectedColId: null }
@@ -548,6 +573,8 @@ export const useMatrixEditorStore = create<MatrixEditorState>((set, get) => ({
           : payloadOrUpdater,
     })),
 
-  setHoveredStepRecord: (rec) => set({ hoveredStepRecord: rec }),
+  setExecutionSteps: (steps, selectedIndex) =>
+    set({ executionSteps: steps, selectedStepIndex: selectedIndex }),
+  setHoveredStepIndex: (idx) => set({ hoveredStepIndex: idx }),
   setHoveredVariableKey: (key) => set({ hoveredVariableKey: key }),
 }));

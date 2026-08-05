@@ -181,7 +181,9 @@ export const DependencyConnectorOverlay: React.FC<
       const stagger = ((idx % 5) - 2) * 18;
 
       computedPaths.push({
-        id: `dep_${idx}_${dep.variableName}_${dep.type || "inc"}_${x1.toFixed(0)}_${y1.toFixed(0)}`,
+        // Identity-based key (never position): coordinates change every scroll
+        // frame and would remount each path/badge, replaying animations.
+        id: `dep_${dep.variableName}_${dep.sourceCellKey || "wf-input"}_${dep.targetCellKey}_${dep.type || "inc"}`,
         variableName: dep.variableName,
         type: dep.type || "incoming",
         value: dep.value,

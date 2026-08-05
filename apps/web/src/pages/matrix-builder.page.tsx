@@ -5,7 +5,7 @@ import { MatrixEvaluatorConnectService } from "@/services/matrix-evaluator.servi
 import { WorkflowApiService } from "@/services/workflow-api.service";
 import { SpreadsheetToolbar } from "@/components/workflow-editor/spreadsheet-toolbar.component";
 import { MatrixSheet } from "@/components/workflow-editor/matrix-sheet.component";
-import { CellEditorModal } from "@/components/workflow-editor/cell-editor-modal.component";
+import { CellEditorModal } from "@/components/workflow-editor/cell-editor/cell-editor-modal.component";
 import { ExecutionInspectorBottomPanel } from "@/components/workflow-editor/execution-inspector-bottom-panel.component";
 import { useMatrixEditorStore } from "@/stores/matrix-editor.store";
 import { useMatrixKeyboardShortcuts } from "@/hooks/use-matrix-keyboard-shortcuts.hook";
@@ -13,6 +13,21 @@ import { useMatrixKeyboardShortcuts } from "@/hooks/use-matrix-keyboard-shortcut
 interface MatrixBuilderPageProps {
   workflowId: string;
   onBackToDashboard: () => void;
+}
+
+/**
+ * Drop cells whose row/column no longer exists. Older builds didn't prune
+ * cells on row/column delete, so persisted matrices can carry orphans whose
+ * declared outputs surface as phantom variables in the inspector.
+ */
+function pruneOrphanedCells(m: MatrixSchema): MatrixSchema {
+  const rowIds = new Set(m.rows.map((r) => r.id));
+  const colIds = new Set(m.columns.map((c) => c.id));
+  const entries = Object.entries(m.cells || {}).filter(
+    ([, cell]) => rowIds.has(cell.rowId) && colIds.has(cell.colId),
+  );
+  if (entries.length === Object.keys(m.cells || {}).length) return m;
+  return { ...m, cells: Object.fromEntries(entries) };
 }
 
 export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
@@ -24,15 +39,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
   const setMatrix = useMatrixEditorStore((s) => s.setMatrix);
   const setSaveState = useMatrixEditorStore((s) => s.setSaveState);
   const setLatestVersion = useMatrixEditorStore((s) => s.setLatestVersion);
-  const isInspectorOpen = useMatrixEditorStore((s) => s.isInspectorOpen);
   const setIsInspectorOpen = useMatrixEditorStore((s) => s.setIsInspectorOpen);
-  const testInputPayload = useMatrixEditorStore((s) => s.testInputPayload);
-  const setHoveredStepRecord = useMatrixEditorStore(
-    (s) => s.setHoveredStepRecord,
-  );
-  const setHoveredVariableKey = useMatrixEditorStore(
-    (s) => s.setHoveredVariableKey,
-  );
   const resetEditor = useMatrixEditorStore((s) => s.resetEditor);
 
   // Attach global keyboard shortcuts (0 props required!)
@@ -63,9 +70,12 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
 
   useEffect(() => {
     if (workflowQuery.data && matrix === undefined) {
-      setMatrix(workflowQuery.data.matrix);
+      const sanitized = pruneOrphanedCells(workflowQuery.data.matrix);
+      setMatrix(sanitized);
       setLatestVersion(workflowQuery.data.latestVersion ?? 0);
-      lastSavedRef.current = JSON.stringify(workflowQuery.data.matrix);
+      // Baseline against the sanitized matrix: the healed version persists
+      // with the next real edit instead of triggering an immediate autosave.
+      lastSavedRef.current = JSON.stringify(sanitized);
     }
   }, [workflowQuery.data, matrix, setMatrix, setLatestVersion]);
 
@@ -206,19 +216,13 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
         <MatrixSheet />
       </div>
 
-      {/* 3. Docked Bottom Inspector */}
-      {isInspectorOpen ? (
-        <ExecutionInspectorBottomPanel
-          isOpen={isInspectorOpen}
-          onClose={() => setIsInspectorOpen(false)}
-          matrix={matrix}
-          initialInputPayload={testInputPayload}
-          onRunExecution={handleStartExecution}
-          isExecuting={executeMatrixMutation.isPending}
-          onHoverStepRecord={setHoveredStepRecord}
-          onHoverVariableKey={setHoveredVariableKey}
-        />
-      ) : null}
+      {/* 3. Docked Bottom Inspector. Mounted while the page lives so test
+          cases and results survive closing/reopening the inspector; it reads
+          its open state from the store. */}
+      <ExecutionInspectorBottomPanel
+        onRunExecution={handleStartExecution}
+        isExecuting={executeMatrixMutation.isPending}
+      />
 
       {/* 4. Cell Editor Modal */}
       <CellEditorModal availableSubWorkflows={availableSubWorkflows} />

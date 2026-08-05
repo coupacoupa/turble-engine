@@ -31,7 +31,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
   onPublish,
   isPublishing = false,
 }) => {
-  // Store subscriptions & direct action calls
   const matrix = useMatrixEditorStore((s) => s.matrix);
   const saveState = useMatrixEditorStore((s) => s.saveState);
   const latestVersion = useMatrixEditorStore((s) => s.latestVersion);
@@ -49,20 +48,17 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
   const [isInputsModalOpen, setIsInputsModalOpen] = useState(false);
   const [isOutputsModalOpen, setIsOutputsModalOpen] = useState(false);
 
-  // Modal Filter & JSON Paste Mode
   const [modalSearchQuery, setModalSearchQuery] = useState("");
   const [isPasteJsonMode, setIsPasteJsonMode] = useState(false);
   const [rawJsonText, setRawJsonText] = useState("");
   const [jsonError, setJsonError] = useState("");
 
-  // Form State for Adding Single Input
   const [newKey, setNewKey] = useState("");
   const [newType, setNewType] = useState<InputValueType>("string");
   const [newDefaultVal, setNewDefaultVal] = useState("");
 
   const inputs = matrix?.inputs || [];
 
-  // Filtered inputs for search inside modal
   const filteredInputs = useMemo(() => {
     if (!modalSearchQuery.trim()) return inputs;
     const query = modalSearchQuery.toLowerCase();
@@ -73,7 +69,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
     );
   }, [inputs, modalSearchQuery]);
 
-  // Extract read-only decision outputs derived from grid cells
   const derivedOutputs = useMemo(() => {
     const outputsSet = new Map<string, { type: string; source: string }>();
     if (!matrix) return [];
@@ -149,7 +144,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
   // After every hook, so a missing matrix cannot change the hook call order.
   if (!matrix) return null;
 
-  // Add Single Parameter
   const handleAddInput = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newKey.trim()) return;
@@ -740,6 +734,97 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                     </div>
                   </>
                 )}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* Derived Outputs Modal (read-only) */}
+      {isOutputsModalOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-modal bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden font-sans flex flex-col max-h-[85vh]">
+              <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 rounded-xl bg-slate-100 text-slate-600">
+                    <Database className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="font-bold text-slate-900 text-sm">
+                        Derived Decision Outputs
+                      </h3>
+                      <span className="bg-slate-100 text-slate-700 text-[10px] font-bold font-mono px-2 py-0.5 rounded-full border border-slate-200">
+                        {derivedOutputs.length} Total Outputs
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-mono">
+                      Variables produced by grid cells and the explicit output
+                      schema (read-only)
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setIsOutputsModalOpen(false)}
+                  className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                  title="Close Outputs"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-5 flex-1 overflow-y-auto min-h-0">
+                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs bg-white">
+                  <div className="max-h-105 overflow-y-auto">
+                    <table className="w-full border-collapse text-left text-xs font-mono">
+                      <thead className="bg-slate-100/90 text-slate-600 sticky top-0 z-10 border-b border-slate-200 text-[10px] uppercase font-bold tracking-wider">
+                        <tr>
+                          <th className="py-2 px-3 w-10 text-center">#</th>
+                          <th className="py-2 px-3">Output KEY Name</th>
+                          <th className="py-2 px-3 w-28">Value Type</th>
+                          <th className="py-2 px-3">Source</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-800">
+                        {derivedOutputs.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={4}
+                              className="py-8 text-center text-slate-400 text-xs italic"
+                            >
+                              No outputs derived yet. Configure cell actions
+                              that mutate variables to see them here.
+                            </td>
+                          </tr>
+                        ) : (
+                          derivedOutputs.map((out, idx) => (
+                            <tr
+                              key={out.key}
+                              className="hover:bg-slate-50/80 transition-colors"
+                            >
+                              <td className="py-1.5 px-3 text-center text-slate-400 text-[11px]">
+                                {idx + 1}
+                              </td>
+                              <td className="py-1.5 px-3 font-bold text-slate-900">
+                                {out.key}
+                              </td>
+                              <td className="py-1.5 px-3">
+                                <span className="bg-slate-100 text-slate-700 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] font-semibold">
+                                  {out.type}
+                                </span>
+                              </td>
+                              <td className="py-1.5 px-3 text-slate-500 text-[11px]">
+                                {out.source}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
           </div>,

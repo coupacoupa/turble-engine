@@ -36,6 +36,9 @@
 @utility z-modal {
   z-index: 50; /* modals, dialogs, floating editors, dropdowns */
 }
+@utility z-popover {
+  z-index: 60; /* portal popovers that must float above modals (intellisense) */
+}
 
 @layer base {
   body {
@@ -80,12 +83,14 @@
 }
 
 @theme {
-  /* Marching-ants animation for dependency flow connector lines */
-  --animate-dashed-flow: dashed-flow 0.9s linear infinite;
+  /* Marching-ants animation for dependency flow connector lines.
+     The offset must travel an exact multiple of every dash period in use
+     (8+5=13 and 6+4=10 → LCM 130) or the loop restart visibly snaps. */
+  --animate-dashed-flow: dashed-flow 3.6s linear infinite;
 
   @keyframes dashed-flow {
     from {
-      stroke-dashoffset: 32;
+      stroke-dashoffset: 130;
     }
     to {
       stroke-dashoffset: 0;

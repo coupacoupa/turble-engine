@@ -153,13 +153,31 @@ class Parser {
     if (t.type === "num") return { kind: "lit", value: t.num! };
     if (t.type === "str") return { kind: "lit", value: t.text };
     if (t.type === "ident") {
-      const kw = KEYWORD_LITERALS[t.text];
-      if (kw) return kw;
+      if (Object.prototype.hasOwnProperty.call(KEYWORD_LITERALS, t.text)) {
+        return KEYWORD_LITERALS[t.text]!;
+      }
       if (t.text === "in" || t.text === "contains") {
         throw new TelSyntaxError(
           `'${t.text}' is an operator and cannot start an expression`,
           t.pos,
         );
+      }
+      // Function call: fn(arg1, arg2, ...)
+      if (this.peek().type === "op" && this.peek().text === "(") {
+        this.next(); // consume '('
+        const args: Expr[] = [];
+        if (this.peek().type !== "op" || this.peek().text !== ")") {
+          for (;;) {
+            args.push(this.parseTernary());
+            if (this.peek().type === "op" && this.peek().text === ",") {
+              this.next();
+              continue;
+            }
+            break;
+          }
+        }
+        this.expectOp(")");
+        return { kind: "call", fn: t.text, args };
       }
       return { kind: "var", name: t.text };
     }
@@ -167,6 +185,21 @@ class Parser {
       const inner = this.parseTernary();
       this.expectOp(")");
       return inner;
+    }
+    if (t.type === "op" && t.text === "[") {
+      const elements: Expr[] = [];
+      if (this.peek().type !== "op" || this.peek().text !== "]") {
+        for (;;) {
+          elements.push(this.parseTernary());
+          if (this.peek().type === "op" && this.peek().text === ",") {
+            this.next();
+            continue;
+          }
+          break;
+        }
+      }
+      this.expectOp("]");
+      return { kind: "array", elements };
     }
     throw new TelSyntaxError(`Unexpected '${t.text || "end of input"}'`, t.pos);
   }

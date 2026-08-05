@@ -1,12 +1,14 @@
 import { MatrixExecutionResult } from "@/services/matrix-evaluator.service";
+import { useMatrixEditorStore } from "@/stores/matrix-editor.store";
 import {
   CellActionItem,
-  MatrixSchema,
   StepEvaluationRecord,
   WorkflowInputField,
   WorkflowOutputField,
 } from "@/types/matrix.types";
 import { getCellActions } from "@/utils/cell-actions.util";
+import { getExcelColumnLetter } from "@/utils/excel-column.util";
+import { parseJsonRecord } from "@/utils/json-record.util";
 import {
   ChevronDown,
   ChevronRight,
@@ -29,39 +31,37 @@ export interface TestCaseInstance {
   id: string;
   name: string;
   inputPayload: Record<string, any>;
+  /** Raw JSON editor text; undefined = derived from inputPayload. */
+  jsonDraft?: string;
   executionResult?: MatrixExecutionResult;
   currentStepIndex: number;
 }
 
 interface ExecutionInspectorBottomPanelProps {
-  isOpen: boolean;
-  onClose: () => void;
-  matrix: MatrixSchema;
-  initialInputPayload: Record<string, any>;
   onRunExecution: (
     payload: Record<string, any>,
   ) => Promise<MatrixExecutionResult>;
   isExecuting: boolean;
-  onHoverStepRecord: (step?: StepEvaluationRecord) => void;
-  onHoverVariableKey?: (key?: string) => void;
-  isPlaying?: boolean;
-  onTogglePlay?: () => void;
 }
 
 export const ExecutionInspectorBottomPanel: React.FC<
   ExecutionInspectorBottomPanelProps
-> = ({
-  isOpen,
-  onClose,
-  matrix,
-  initialInputPayload,
-  onRunExecution,
-  isExecuting,
-  onHoverStepRecord,
-  onHoverVariableKey,
-  isPlaying = false,
-  onTogglePlay,
-}) => {
+> = ({ onRunExecution, isExecuting }) => {
+  // Store-direct subscriptions
+  const matrix = useMatrixEditorStore((s) => s.matrix);
+  const isOpen = useMatrixEditorStore((s) => s.isInspectorOpen);
+  const setIsInspectorOpen = useMatrixEditorStore((s) => s.setIsInspectorOpen);
+  const setTestInputPayload = useMatrixEditorStore(
+    (s) => s.setTestInputPayload,
+  );
+  const setExecutionSteps = useMatrixEditorStore((s) => s.setExecutionSteps);
+  const setHoveredStepIndex = useMatrixEditorStore(
+    (s) => s.setHoveredStepIndex,
+  );
+  const setHoveredVariableKey = useMatrixEditorStore(
+    (s) => s.setHoveredVariableKey,
+  );
+
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
   const [panelHeight, setPanelHeight] = useState<number>(420);
   const [isResizing, setIsResizing] = useState<boolean>(false);
@@ -69,25 +69,33 @@ export const ExecutionInspectorBottomPanel: React.FC<
     "inputs",
   );
 
-  // Excel-Style Multi-Test Case Tabs State
-  const [testCases, setTestCases] = useState<TestCaseInstance[]>(() => [
-    {
-      id: "tc_1",
-      name: "Test Case 1",
-      inputPayload: initialInputPayload,
-      currentStepIndex: 0,
-    },
-  ]);
+  // Excel-Style Multi-Test Case Tabs State. Lazy initializer: last-used test
+  // payload from the store, falling back to schema defaults.
+  const [testCases, setTestCases] = useState<TestCaseInstance[]>(() => {
+    const { matrix: m, testInputPayload } = useMatrixEditorStore.getState();
+    const initialPayload =
+      Object.keys(testInputPayload).length > 0
+        ? testInputPayload
+        : Object.fromEntries(
+            (m?.inputs || [])
+              .filter((f) => f.defaultValue !== undefined)
+              .map((f) => [f.key, f.defaultValue]),
+          );
+    return [
+      {
+        id: "tc_1",
+        name: "Test Case 1",
+        inputPayload: initialPayload,
+        currentStepIndex: 0,
+      },
+    ];
+  });
   const [activeTestCaseId, setActiveTestCaseId] = useState<string>("tc_1");
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editingNameText, setEditingNameText] = useState<string>("");
 
-  // Form vs JSON state for active test case
+  // Form vs JSON editor mode for the active test case
   const [isJsonMode, setIsJsonMode] = useState<boolean>(false);
-  const [jsonText, setJsonText] = useState<string>(
-    JSON.stringify(initialInputPayload, null, 2),
-  );
-  const [jsonError, setJsonError] = useState<string | null>(null);
   const [inputSearchQuery, setInputSearchQuery] = useState<string>("");
 
   // Variable Inspector Search & Pin state
@@ -96,28 +104,42 @@ export const ExecutionInspectorBottomPanel: React.FC<
     new Set<string>(),
   );
 
+  // Step playback (local: advances the active test case on an interval)
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+
   const resizeStartYRef = useRef<number>(0);
   const resizeStartHeightRef = useRef<number>(380);
 
-  // Active Test Case Instance getter
   const activeTestCase = useMemo(() => {
     return testCases.find((tc) => tc.id === activeTestCaseId) || testCases[0];
   }, [testCases, activeTestCaseId]);
 
-  // Sync jsonText when active test case changes
-  useEffect(() => {
-    if (activeTestCase) {
-      setJsonText(JSON.stringify(activeTestCase.inputPayload || {}, null, 2));
-    }
-  }, [activeTestCaseId]);
+  // JSON editor text/error are derived from the active test case — each tab
+  // keeps its own draft, so no cross-tab sync effect is needed.
+  const jsonText =
+    activeTestCase?.jsonDraft ??
+    JSON.stringify(activeTestCase?.inputPayload || {}, null, 2);
+  const jsonError =
+    activeTestCase?.jsonDraft !== undefined
+      ? (parseJsonRecord(activeTestCase.jsonDraft).error ?? null)
+      : null;
 
-  const workflowInputs = matrix.inputs || [];
+  const workflowInputs = matrix?.inputs || [];
   const currentStepIndex = activeTestCase?.currentStepIndex || 0;
   const executionResult = activeTestCase?.executionResult;
-  const stepRecords = executionResult?.eventLog?.stepRecords || [];
+  // Stable identity so the store-sync effect below only fires on real changes.
+  const stepRecords = useMemo(
+    () => executionResult?.eventLog?.stepRecords ?? [],
+    [executionResult],
+  );
   const totalSteps = stepRecords.length;
 
-  // Derive field list for inputs
+  // Mirror the active run + selected step into the store: the sheet renders
+  // the selected step's flow persistently, with hover as a transient preview.
+  useEffect(() => {
+    setExecutionSteps(stepRecords, currentStepIndex);
+  }, [stepRecords, currentStepIndex, setExecutionSteps]);
+
   const allFieldKeys = useMemo<WorkflowInputField[]>(() => {
     if (workflowInputs.length > 0) return workflowInputs;
     const payload = activeTestCase?.inputPayload || {};
@@ -143,7 +165,6 @@ export const ExecutionInspectorBottomPanel: React.FC<
     );
   }, [allFieldKeys, inputSearchQuery]);
 
-  // Update active test case property helper
   const updateActiveTestCase = (
     updater: (tc: TestCaseInstance) => TestCaseInstance,
   ) => {
@@ -152,14 +173,13 @@ export const ExecutionInspectorBottomPanel: React.FC<
     );
   };
 
-  // Handle single field input changes
+  // Handle single field input changes (form mode invalidates the JSON draft)
   const handleFieldChange = (key: string, value: any) => {
-    const updatedPayload = {
-      ...(activeTestCase.inputPayload || {}),
-      [key]: value,
-    };
-    updateActiveTestCase((tc) => ({ ...tc, inputPayload: updatedPayload }));
-    setJsonText(JSON.stringify(updatedPayload, null, 2));
+    updateActiveTestCase((tc) => ({
+      ...tc,
+      inputPayload: { ...(tc.inputPayload || {}), [key]: value },
+      jsonDraft: undefined,
+    }));
   };
 
   // Reset inputs to schema defaults
@@ -168,9 +188,11 @@ export const ExecutionInspectorBottomPanel: React.FC<
     allFieldKeys.forEach((f) => {
       resetPayload[f.key] = f.defaultValue !== undefined ? f.defaultValue : "";
     });
-    updateActiveTestCase((tc) => ({ ...tc, inputPayload: resetPayload }));
-    setJsonText(JSON.stringify(resetPayload, null, 2));
-    setJsonError(null);
+    updateActiveTestCase((tc) => ({
+      ...tc,
+      inputPayload: resetPayload,
+      jsonDraft: undefined,
+    }));
   };
 
   // Clear inputs
@@ -179,35 +201,33 @@ export const ExecutionInspectorBottomPanel: React.FC<
     allFieldKeys.forEach((f) => {
       clearedPayload[f.key] = "";
     });
-    updateActiveTestCase((tc) => ({ ...tc, inputPayload: clearedPayload }));
-    setJsonText(JSON.stringify(clearedPayload, null, 2));
-    setJsonError(null);
+    updateActiveTestCase((tc) => ({
+      ...tc,
+      inputPayload: clearedPayload,
+      jsonDraft: undefined,
+    }));
   };
 
-  // JSON raw text handler
+  // JSON raw text handler — the draft always reflects what the user typed;
+  // inputPayload only advances on valid JSON.
   const handleJsonTextChange = (text: string) => {
-    setJsonText(text);
-    try {
-      const parsed = JSON.parse(text);
-      setJsonError(null);
-      updateActiveTestCase((tc) => ({ ...tc, inputPayload: parsed }));
-    } catch (err: any) {
-      setJsonError(err.message || "Invalid JSON syntax");
-    }
+    updateActiveTestCase((tc) => {
+      const parsed = parseJsonRecord(text);
+      return {
+        ...tc,
+        jsonDraft: text,
+        ...(parsed.value ? { inputPayload: parsed.value } : {}),
+      };
+    });
   };
 
   // Run simulation for active test case
   const handleRunSimulation = async () => {
-    let payloadToRun = activeTestCase.inputPayload;
-    if (isJsonMode) {
-      try {
-        payloadToRun = JSON.parse(jsonText);
-        setJsonError(null);
-      } catch (err: any) {
-        setJsonError(err.message || "Cannot parse JSON");
-        return;
-      }
-    }
+    if (isJsonMode && jsonError) return;
+    const payloadToRun = activeTestCase.inputPayload;
+    // Persist so reopening the inspector (or the next session's default test
+    // case) starts from the last-used payload.
+    setTestInputPayload(payloadToRun);
     const res = await onRunExecution(payloadToRun);
     updateActiveTestCase((tc) => ({
       ...tc,
@@ -229,7 +249,7 @@ export const ExecutionInspectorBottomPanel: React.FC<
       id: newId,
       name: newName,
       inputPayload: {
-        ...(activeTestCase?.inputPayload || initialInputPayload),
+        ...(activeTestCase?.inputPayload || {}),
       },
       currentStepIndex: 0,
     };
@@ -287,6 +307,7 @@ export const ExecutionInspectorBottomPanel: React.FC<
 
   // All variable entries derived from schema inputs, schema outputs, cell outputs, and runtime payload
   const allVariableEntries = useMemo(() => {
+    if (!matrix) return [];
     const payload =
       activeStepRecord?.finalPayload ||
       executionResult?.finalPayload ||
@@ -302,16 +323,6 @@ export const ExecutionInspectorBottomPanel: React.FC<
         coordinates: { colLetter: string; rowNum: number; fullLabel: string }[];
       }
     >();
-
-    const getExcelColumnLetter = (colIndex: number): string => {
-      let letter = "";
-      let temp = colIndex;
-      while (temp >= 0) {
-        letter = String.fromCharCode((temp % 26) + 65) + letter;
-        temp = Math.floor(temp / 26) - 1;
-      }
-      return letter;
-    };
 
     const sortedCols = [...(matrix.columns || [])].sort(
       (a, b) => a.order - b.order,
@@ -514,7 +525,37 @@ export const ExecutionInspectorBottomPanel: React.FC<
     };
   }, [isResizing]);
 
-  if (!isOpen) return null;
+  // Playback: advance the active test case one step per tick
+  useEffect(() => {
+    if (!isPlaying || totalSteps === 0) return;
+    const timer = setInterval(() => {
+      setTestCases((prev) =>
+        prev.map((tc) =>
+          tc.id === activeTestCaseId
+            ? {
+                ...tc,
+                currentStepIndex: Math.min(
+                  totalSteps - 1,
+                  tc.currentStepIndex + 1,
+                ),
+              }
+            : tc,
+        ),
+      );
+    }, 700);
+    return () => clearInterval(timer);
+  }, [isPlaying, totalSteps, activeTestCaseId]);
+
+  // Stop playback at the last step
+  useEffect(() => {
+    if (isPlaying && currentStepIndex >= totalSteps - 1) {
+      setIsPlaying(false);
+    }
+  }, [isPlaying, currentStepIndex, totalSteps]);
+
+  // After every hook — matrix can be undefined mid-session without changing
+  // the hook call order.
+  if (!isOpen || !matrix) return null;
 
   const currentCellRes = activeStepRecord?.cellResults?.[0];
   const currentRowObj = matrix.rows.find((r) => r.id === currentCellRes?.rowId);
@@ -593,20 +634,24 @@ export const ExecutionInspectorBottomPanel: React.FC<
             <Rewind className="h-3.5 w-3.5" />
           </button>
 
-          {onTogglePlay && (
-            <button
-              onClick={onTogglePlay}
-              disabled={totalSteps === 0}
-              className="px-2.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-bold text-[11px] flex items-center space-x-1 cursor-pointer"
-            >
-              {isPlaying ? (
-                <Pause className="h-3 w-3" />
-              ) : (
-                <Play className="h-3 w-3 fill-current" />
-              )}
-              <span>{isPlaying ? "Pause" : "Play"}</span>
-            </button>
-          )}
+          <button
+            onClick={() => {
+              // Replay from the start when already parked on the last step
+              if (!isPlaying && currentStepIndex >= totalSteps - 1) {
+                updateActiveTestCase((tc) => ({ ...tc, currentStepIndex: 0 }));
+              }
+              setIsPlaying((prev) => !prev);
+            }}
+            disabled={totalSteps === 0}
+            className="px-2.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-bold text-[11px] flex items-center space-x-1 cursor-pointer"
+          >
+            {isPlaying ? (
+              <Pause className="h-3 w-3" />
+            ) : (
+              <Play className="h-3 w-3 fill-current" />
+            )}
+            <span>{isPlaying ? "Pause" : "Play"}</span>
+          </button>
 
           <button
             onClick={() =>
@@ -659,7 +704,7 @@ export const ExecutionInspectorBottomPanel: React.FC<
           </button>
 
           <button
-            onClick={onClose}
+            onClick={() => setIsInspectorOpen(false)}
             className="p-1 rounded hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
             title="Close Execution Inspector"
           >
@@ -987,8 +1032,8 @@ export const ExecutionInspectorBottomPanel: React.FC<
                                 currentStepIndex: idx,
                               }))
                             }
-                            onMouseEnter={() => onHoverStepRecord(rec)}
-                            onMouseLeave={() => onHoverStepRecord(undefined)}
+                            onMouseEnter={() => setHoveredStepIndex(idx)}
+                            onMouseLeave={() => setHoveredStepIndex(null)}
                             className={`px-2 py-1.5 rounded border transition-colors cursor-pointer select-none flex items-center justify-between gap-2 ${
                               isSelected
                                 ? "bg-slate-200/90 text-slate-900 border-slate-300 font-bold shadow-2xs"
@@ -1071,8 +1116,8 @@ export const ExecutionInspectorBottomPanel: React.FC<
                     {pinnedVariables.map((item) => (
                       <div
                         key={`pinned_${item.key}`}
-                        onMouseEnter={() => onHoverVariableKey?.(item.key)}
-                        onMouseLeave={() => onHoverVariableKey?.(undefined)}
+                        onMouseEnter={() => setHoveredVariableKey(item.key)}
+                        onMouseLeave={() => setHoveredVariableKey(undefined)}
                         className="px-2.5 py-1.5 bg-amber-50/80 border border-amber-200 rounded-lg flex items-center justify-between gap-2 text-xs md:text-sm hover:border-amber-400 transition-colors shadow-2xs select-none min-w-0"
                       >
                         <div className="flex items-center space-x-1.5 min-w-0 flex-1 truncate">
@@ -1123,8 +1168,8 @@ export const ExecutionInspectorBottomPanel: React.FC<
                     {unpinnedVariables.map((item) => (
                       <div
                         key={`unpinned_${item.key}`}
-                        onMouseEnter={() => onHoverVariableKey?.(item.key)}
-                        onMouseLeave={() => onHoverVariableKey?.(undefined)}
+                        onMouseEnter={() => setHoveredVariableKey(item.key)}
+                        onMouseLeave={() => setHoveredVariableKey(undefined)}
                         className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg flex items-center justify-between gap-2 text-xs md:text-sm hover:border-slate-400 transition-colors shadow-2xs select-none min-w-0"
                       >
                         <div className="flex items-center space-x-1.5 min-w-0 flex-1 truncate">

@@ -3,22 +3,18 @@
  * future Rust engine: no undefined, no functions, no Date. Numbers are IEEE-754 f64.
  */
 export type Value =
-  | null
-  | boolean
-  | number
-  | string
-  | Value[]
-  | { [key: string]: Value };
+  null | boolean | number | string | Value[] | { [key: string]: Value };
 
-/** Falsy: null, false, 0, NaN, ''. Everything else (including [] and {}) is truthy. */
-export function truthy(v: Value): boolean {
-  if (v === null || v === false) return false;
+/** Falsy: null, undefined, false, 0, NaN, ''. Everything else (including [] and {}) is truthy. */
+export function truthy(v: Value | undefined): boolean {
+  if (v === undefined || v === null || v === false) return false;
   if (typeof v === "number") return v !== 0 && !Number.isNaN(v);
   if (typeof v === "string") return v.length > 0;
   return true;
 }
 
-export function typeName(v: Value): string {
+export function typeName(v: Value | undefined): string {
+  if (v === undefined) return "undefined";
   if (v === null) return "null";
   if (Array.isArray(v)) return "array";
   return typeof v; // 'boolean' | 'number' | 'string' | 'object'

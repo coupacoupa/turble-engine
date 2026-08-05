@@ -26,4 +26,6 @@ export type Expr =
   | { kind: "index"; obj: Expr; idx: Expr }
   | { kind: "unary"; op: UnaryOp; operand: Expr }
   | { kind: "bin"; op: BinaryOp; left: Expr; right: Expr }
-  | { kind: "cond"; test: Expr; then: Expr; else: Expr };
+  | { kind: "cond"; test: Expr; then: Expr; else: Expr }
+  | { kind: "call"; fn: string; args: Expr[] }
+  | { kind: "array"; elements: Expr[] };

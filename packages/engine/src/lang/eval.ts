@@ -1,5 +1,6 @@
 import { Expr } from "./ast";
 import { TelRuntimeError } from "./errors";
+import { BUILTIN_FUNCTIONS } from "./functions";
 import { deepEquals, truthy, typeName, Value } from "./value";
 
 /** Variable resolution scope. Unknown identifiers evaluate to null. */
@@ -201,5 +202,18 @@ export function evaluate(expr: Expr, scope: Scope): Value {
       return truthy(evaluate(expr.test, scope))
         ? evaluate(expr.then, scope)
         : evaluate(expr.else, scope);
+
+    case "call": {
+      const fnName = expr.fn.toLowerCase();
+      const fn = BUILTIN_FUNCTIONS[fnName];
+      if (!fn) {
+        throw new TelRuntimeError(`Unknown function '${expr.fn}'`);
+      }
+      const args = expr.args.map((arg) => evaluate(arg, scope));
+      return fn(args);
+    }
+
+    case "array":
+      return expr.elements.map((el) => evaluate(el, scope));
   }
 }

@@ -5,36 +5,26 @@ import React, {
   useRef,
   useEffect,
 } from "react";
-import { Trash2, AlertTriangle, GripVertical } from "lucide-react";
 import {
   DependencyConnectorOverlay,
   ActiveDependency,
 } from "@/components/workflow-editor/dependency-connector-overlay.component";
+import { ColumnHeaderCell } from "@/components/workflow-editor/matrix-sheet/column-header-cell.component";
+import {
+  CellIssues,
+  CellExecutionState,
+  GridCell,
+} from "@/components/workflow-editor/matrix-sheet/grid-cell.component";
+import { ResizeHandle } from "@/components/workflow-editor/matrix-sheet/resize-handle.component";
+import { RowHeaderCell } from "@/components/workflow-editor/matrix-sheet/row-header-cell.component";
 import { WorkflowValidationService } from "@/services/workflow-validation.service";
-import { getCellActions } from "@/utils/cell-actions.util";
-import { computeCellDependencies } from "@/utils/dependency-tracing.util";
+import {
+  computeCellDependencies,
+  computeExecutionFlowEdges,
+  computeVariableFlowEdges,
+} from "@/utils/dependency-tracing.util";
+import { getExcelColumnLetter } from "@/utils/excel-column.util";
 import { useMatrixEditorStore } from "@/stores/matrix-editor.store";
-
-export interface CellExecutionState {
-  mutatedPayload?: Record<string, any>;
-  matchedRule?: string;
-  latencyMs?: number;
-}
-
-interface MatrixSheetProps {
-  activeStepIndex?: number;
-  cellExecutionResults?: Record<string, CellExecutionState>;
-}
-
-export function getExcelColumnLetter(index: number): string {
-  let letter = "";
-  let curr = index;
-  while (curr >= 0) {
-    letter = String.fromCharCode((curr % 26) + 65) + letter;
-    curr = Math.floor(curr / 26) - 1;
-  }
-  return letter;
-}
 
 const DEFAULT_COL_WIDTH = 260;
 const MIN_COL_WIDTH = 120;
@@ -43,58 +33,26 @@ const MIN_ROW_HEIGHT = 40;
 const ROW_HEADER_DEFAULT_WIDTH = 260;
 const ROW_HEADER_MIN_WIDTH = 160;
 
-const NO_ISSUES: { unresolvedInputs: string[]; clashingOutputs: string[] } = {
+const NO_ISSUES: CellIssues = {
   unresolvedInputs: [],
   clashingOutputs: [],
 };
 
-const ResizeHandle: React.FC<{
-  orientation: "col" | "row";
-  onMouseDown: (e: React.MouseEvent) => void;
-  onDoubleClick: () => void;
-}> = ({ orientation, onMouseDown, onDoubleClick }) => {
-  const isCol = orientation === "col";
-  return (
-    <div
-      className={`absolute z-20 group/resize hover:bg-emerald-500/40 active:bg-emerald-500/60 transition-colors ${
-        isCol
-          ? "top-0 right-0 w-1.25 h-full cursor-col-resize"
-          : "bottom-0 left-0 w-full h-1.25 cursor-row-resize"
-      }`}
-      onMouseDown={onMouseDown}
-      onDoubleClick={onDoubleClick}
-    >
-      <div
-        className={`absolute opacity-0 group-hover/resize:opacity-100 group-hover/resize:bg-emerald-500 group-active/resize:bg-emerald-600 transition-opacity ${
-          isCol ? "top-0 right-0 w-0.5 h-full" : "bottom-0 left-0 w-full h-0.5"
-        }`}
-      />
-    </div>
-  );
-};
-
-export const MatrixSheet: React.FC<MatrixSheetProps> = ({
-  activeStepIndex,
-  cellExecutionResults,
-}) => {
-  // Direct Store Subscriptions & Action Dispatchers
+export const MatrixSheet: React.FC = () => {
   const matrix = useMatrixEditorStore((s) => s.matrix);
   const selectedRowId = useMatrixEditorStore((s) => s.selectedRowId);
   const selectedColId = useMatrixEditorStore((s) => s.selectedColId);
   const copiedCellKey = useMatrixEditorStore((s) => s.copiedCellKey);
   const activeDependency = useMatrixEditorStore((s) => s.activeDependency);
   const showFlows = useMatrixEditorStore((s) => s.showFlows);
+  const executionSteps = useMatrixEditorStore((s) => s.executionSteps);
+  const selectedStepIndex = useMatrixEditorStore((s) => s.selectedStepIndex);
+  const hoveredStepIndex = useMatrixEditorStore((s) => s.hoveredStepIndex);
+  const hoveredVariableKey = useMatrixEditorStore((s) => s.hoveredVariableKey);
+  const isInspectorOpen = useMatrixEditorStore((s) => s.isInspectorOpen);
 
-  const selectCell = useMatrixEditorStore((s) => s.selectCell);
   const addColumn = useMatrixEditorStore((s) => s.addColumn);
   const addRow = useMatrixEditorStore((s) => s.addRow);
-  const deleteRow = useMatrixEditorStore((s) => s.deleteRow);
-  const deleteColumn = useMatrixEditorStore((s) => s.deleteColumn);
-  const renameColumn = useMatrixEditorStore((s) => s.renameColumn);
-  const renameRow = useMatrixEditorStore((s) => s.renameRow);
-  const reorderColumns = useMatrixEditorStore((s) => s.reorderColumns);
-  const reorderRows = useMatrixEditorStore((s) => s.reorderRows);
-  const openModal = useMatrixEditorStore((s) => s.openModal);
 
   const sortedCols = useMemo(
     () => (matrix ? [...matrix.columns].sort((a, b) => a.order - b.order) : []),
@@ -105,11 +63,40 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
     [matrix?.rows],
   );
 
+  // Execution inspector → grid highlight, derived from the store so the
+  // inspector and the sheet stay wired without prop threading. Hovering a step
+  // previews it; on mouse-leave the display reverts to the selected step.
+  const displayStepIndex = hoveredStepIndex ?? selectedStepIndex;
+  const displayStepRecord = executionSteps[displayStepIndex];
+
+  const activeStepIndex = useMemo(
+    () =>
+      displayStepRecord
+        ? sortedCols.findIndex((c) => c.id === displayStepRecord.colId)
+        : -1,
+    [displayStepRecord, sortedCols],
+  );
+
+  // Cumulative "flow till then": every cell executed in steps 0..display gets
+  // its result, so the sheet shows the run's whole path up to that step.
+  const cellExecutionResults = useMemo<
+    Record<string, CellExecutionState> | undefined
+  >(() => {
+    if (!displayStepRecord) return undefined;
+    const map: Record<string, CellExecutionState> = {};
+    for (let i = 0; i <= displayStepIndex && i < executionSteps.length; i++) {
+      executionSteps[i]!.cellResults.forEach((res) => {
+        map[`${res.rowId}:${res.colId}`] = {
+          mutatedPayload: res.mutatedPayload,
+          latencyMs: res.latencyMs,
+        };
+      });
+    }
+    return map;
+  }, [executionSteps, displayStepIndex, displayStepRecord]);
+
   const cellIssues = useMemo(() => {
-    const map: Record<
-      string,
-      { unresolvedInputs: string[]; clashingOutputs: string[] }
-    > = {};
+    const map: Record<string, CellIssues> = {};
     if (!matrix) return map;
     Object.entries(matrix.cells).forEach(([cellKey, cell]) => {
       map[cellKey] = {
@@ -130,60 +117,83 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
     // must not trigger an O(cells²) revalidation.
   }, [matrix?.cells, matrix?.columns, matrix?.rows, matrix?.inputs]);
 
-  // Dependency edges for the selected cell, derived on demand instead of
-  // persisted in the store so they can never go stale.
+  // Flow edges for the connector overlay, derived on demand instead of
+  // persisted in the store so they can never go stale. Precedence mirrors how
+  // explicit the interaction is:
+  //   1. hovering a variable  → that variable's producer→consumer edges
+  //   2. hovering a step      → the run's data flow up to that step
+  //   3. inspector open + run → the run's data flow up to the selected step
+  //   4. showFlows + cell     → the selected cell's authoring dependencies
   const dependencies = useMemo<ActiveDependency[]>(() => {
-    if (!matrix || !showFlows || !selectedRowId || !selectedColId) return [];
-    return computeCellDependencies(matrix, selectedRowId, selectedColId);
-  }, [matrix, showFlows, selectedRowId, selectedColId]);
+    if (!matrix) return [];
 
+    const runPayload = executionSteps[displayStepIndex]?.finalPayload;
+    if (hoveredVariableKey) {
+      return computeVariableFlowEdges(matrix, hoveredVariableKey, runPayload);
+    }
+    if (hoveredStepIndex !== null && executionSteps.length > 0) {
+      return computeExecutionFlowEdges(
+        matrix,
+        executionSteps,
+        hoveredStepIndex,
+      );
+    }
+    if (isInspectorOpen && executionSteps.length > 0) {
+      return computeExecutionFlowEdges(
+        matrix,
+        executionSteps,
+        selectedStepIndex,
+      );
+    }
+    if (showFlows && selectedRowId && selectedColId) {
+      return computeCellDependencies(matrix, selectedRowId, selectedColId);
+    }
+    return [];
+  }, [
+    matrix,
+    hoveredVariableKey,
+    hoveredStepIndex,
+    isInspectorOpen,
+    executionSteps,
+    selectedStepIndex,
+    displayStepIndex,
+    showFlows,
+    selectedRowId,
+    selectedColId,
+  ]);
+
+  // Sizing state. Mirrored into refs so the resize-start handlers stay
+  // reference-stable and never break header/cell memoization.
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
   const [rowHeaderWidth, setRowHeaderWidth] = useState(
     ROW_HEADER_DEFAULT_WIDTH,
   );
+  const colWidthsRef = useRef(colWidths);
+  colWidthsRef.current = colWidths;
+  const rowHeightsRef = useRef(rowHeights);
+  rowHeightsRef.current = rowHeights;
+  const rowHeaderWidthRef = useRef(rowHeaderWidth);
+  rowHeaderWidthRef.current = rowHeaderWidth;
 
-  const [editingColId, setEditingColId] = useState<string | null>(null);
-  const [editingColText, setEditingColText] = useState<string>("");
-  const [editingRowId, setEditingRowId] = useState<string | null>(null);
-  const [editingRowText, setEditingRowText] = useState<string>("");
-
-  const handleStartRenameCol = useCallback(
-    (colId: string, currentLabel: string) => {
-      setEditingColId(colId);
-      setEditingColText(currentLabel);
-    },
-    [],
-  );
-
-  const handleSaveColName = useCallback(() => {
-    if (editingColId && editingColText.trim()) {
-      renameColumn(editingColId, editingColText.trim());
-    }
-    setEditingColId(null);
-    setEditingColText("");
-  }, [editingColId, editingColText, renameColumn]);
-
-  const handleStartRenameRow = useCallback(
-    (rowId: string, currentLabel: string) => {
-      setEditingRowId(rowId);
-      setEditingRowText(currentLabel);
-    },
-    [],
-  );
-
-  const handleSaveRowName = useCallback(() => {
-    if (editingRowId && editingRowText.trim()) {
-      renameRow(editingRowId, editingRowText.trim());
-    }
-    setEditingRowId(null);
-    setEditingRowText("");
-  }, [editingRowId, editingRowText, renameRow]);
-
-  const [draggingColId, setDraggingColId] = useState<string | null>(null);
+  // Drag-reorder state. The dragging ids live in refs (read at event time)
+  // with a state mirror for the visual treatment, keeping every drag handler
+  // reference-stable.
+  const draggingColIdRef = useRef<string | null>(null);
+  const draggingRowIdRef = useRef<string | null>(null);
+  const [draggingColId, setDraggingColIdState] = useState<string | null>(null);
   const [dragOverColId, setDragOverColId] = useState<string | null>(null);
-  const [draggingRowId, setDraggingRowId] = useState<string | null>(null);
+  const [draggingRowId, setDraggingRowIdState] = useState<string | null>(null);
   const [dragOverRowId, setDragOverRowId] = useState<string | null>(null);
+
+  const setDraggingColId = useCallback((id: string | null) => {
+    draggingColIdRef.current = id;
+    setDraggingColIdState(id);
+  }, []);
+  const setDraggingRowId = useCallback((id: string | null) => {
+    draggingRowIdRef.current = id;
+    setDraggingRowIdState(id);
+  }, []);
 
   const handleColDragStart = useCallback(
     (e: React.DragEvent, colId: string) => {
@@ -191,56 +201,50 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
       e.dataTransfer.effectAllowed = "move";
       setDraggingColId(colId);
     },
-    [],
+    [setDraggingColId],
   );
 
   const handleColDragOver = useCallback(
     (e: React.DragEvent, targetColId: string) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
-      if (draggingColId && draggingColId !== targetColId) {
+      const src = draggingColIdRef.current;
+      if (src && src !== targetColId) {
         setDragOverColId(targetColId);
       }
     },
-    [draggingColId],
+    [],
   );
 
   const handleColDrop = useCallback(
     (e: React.DragEvent, targetColId: string) => {
       e.preventDefault();
       setDragOverColId(null);
-      if (!draggingColId || draggingColId === targetColId) {
-        setDraggingColId(null);
-        return;
-      }
-
-      const currentCols = [...sortedCols];
-      const srcIndex = currentCols.findIndex((c) => c.id === draggingColId);
-      const targetIndex = currentCols.findIndex((c) => c.id === targetColId);
-
-      if (srcIndex === -1 || targetIndex === -1) {
-        setDraggingColId(null);
-        return;
-      }
-
-      const [movedCol] = currentCols.splice(srcIndex, 1);
-      currentCols.splice(targetIndex, 0, movedCol);
-
-      const reordered = currentCols.map((col, idx) => ({
-        ...col,
-        order: idx,
-      }));
-
+      const src = draggingColIdRef.current;
       setDraggingColId(null);
-      reorderColumns(reordered);
+      if (!src || src === targetColId) return;
+
+      // Event-time store read keeps this callback stable.
+      const { matrix: current, reorderColumns } =
+        useMatrixEditorStore.getState();
+      if (!current) return;
+
+      const cols = [...current.columns].sort((a, b) => a.order - b.order);
+      const srcIndex = cols.findIndex((c) => c.id === src);
+      const targetIndex = cols.findIndex((c) => c.id === targetColId);
+      if (srcIndex === -1 || targetIndex === -1) return;
+
+      const [movedCol] = cols.splice(srcIndex, 1);
+      cols.splice(targetIndex, 0, movedCol!);
+      reorderColumns(cols.map((col, idx) => ({ ...col, order: idx })));
     },
-    [draggingColId, sortedCols, reorderColumns],
+    [setDraggingColId],
   );
 
   const handleColDragEnd = useCallback(() => {
     setDraggingColId(null);
     setDragOverColId(null);
-  }, []);
+  }, [setDraggingColId]);
 
   const handleRowDragStart = useCallback(
     (e: React.DragEvent, rowId: string) => {
@@ -248,56 +252,48 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
       e.dataTransfer.effectAllowed = "move";
       setDraggingRowId(rowId);
     },
-    [],
+    [setDraggingRowId],
   );
 
   const handleRowDragOver = useCallback(
     (e: React.DragEvent, targetRowId: string) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
-      if (draggingRowId && draggingRowId !== targetRowId) {
+      const src = draggingRowIdRef.current;
+      if (src && src !== targetRowId) {
         setDragOverRowId(targetRowId);
       }
     },
-    [draggingRowId],
+    [],
   );
 
   const handleRowDrop = useCallback(
     (e: React.DragEvent, targetRowId: string) => {
       e.preventDefault();
       setDragOverRowId(null);
-      if (!draggingRowId || draggingRowId === targetRowId) {
-        setDraggingRowId(null);
-        return;
-      }
-
-      const currentRows = [...sortedRows];
-      const srcIndex = currentRows.findIndex((r) => r.id === draggingRowId);
-      const targetIndex = currentRows.findIndex((r) => r.id === targetRowId);
-
-      if (srcIndex === -1 || targetIndex === -1) {
-        setDraggingRowId(null);
-        return;
-      }
-
-      const [movedRow] = currentRows.splice(srcIndex, 1);
-      currentRows.splice(targetIndex, 0, movedRow);
-
-      const reordered = currentRows.map((row, idx) => ({
-        ...row,
-        order: idx,
-      }));
-
+      const src = draggingRowIdRef.current;
       setDraggingRowId(null);
-      reorderRows(reordered);
+      if (!src || src === targetRowId) return;
+
+      const { matrix: current, reorderRows } = useMatrixEditorStore.getState();
+      if (!current) return;
+
+      const rows = [...current.rows].sort((a, b) => a.order - b.order);
+      const srcIndex = rows.findIndex((r) => r.id === src);
+      const targetIndex = rows.findIndex((r) => r.id === targetRowId);
+      if (srcIndex === -1 || targetIndex === -1) return;
+
+      const [movedRow] = rows.splice(srcIndex, 1);
+      rows.splice(targetIndex, 0, movedRow!);
+      reorderRows(rows.map((row, idx) => ({ ...row, order: idx })));
     },
-    [draggingRowId, sortedRows, reorderRows],
+    [setDraggingRowId],
   );
 
   const handleRowDragEnd = useCallback(() => {
     setDraggingRowId(null);
     setDragOverRowId(null);
-  }, []);
+  }, [setDraggingRowId]);
 
   const [pendingScrollColId, setPendingScrollColId] = useState<string | null>(
     null,
@@ -371,7 +367,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
     (e: React.MouseEvent, colId: string) => {
       e.preventDefault();
       e.stopPropagation();
-      const startWidth = colWidths[colId] ?? DEFAULT_COL_WIDTH;
+      const startWidth = colWidthsRef.current[colId] ?? DEFAULT_COL_WIDTH;
       dragRef.current = {
         type: "col",
         id: colId,
@@ -381,14 +377,14 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
     },
-    [colWidths],
+    [],
   );
 
   const handleRowResizeStart = useCallback(
     (e: React.MouseEvent, rowId: string) => {
       e.preventDefault();
       e.stopPropagation();
-      const startHeight = rowHeights[rowId] ?? DEFAULT_ROW_HEIGHT;
+      const startHeight = rowHeightsRef.current[rowId] ?? DEFAULT_ROW_HEIGHT;
       dragRef.current = {
         type: "row",
         id: rowId,
@@ -398,24 +394,21 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
       document.body.style.cursor = "row-resize";
       document.body.style.userSelect = "none";
     },
-    [rowHeights],
+    [],
   );
 
-  const handleRowHeaderResizeStart = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dragRef.current = {
-        type: "row-header",
-        id: "header",
-        startPos: e.clientX,
-        startSize: rowHeaderWidth,
-      };
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-    },
-    [rowHeaderWidth],
-  );
+  const handleRowHeaderResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragRef.current = {
+      type: "row-header",
+      id: "header",
+      startPos: e.clientX,
+      startSize: rowHeaderWidthRef.current,
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -516,116 +509,30 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                 />
               </th>
 
-              {sortedCols.map((col, cIdx) => {
-                const isActiveStep = activeStepIndex === cIdx;
-                const isColSelected = selectedColId === col.id;
-                const isDraggingThisCol = draggingColId === col.id;
-                const isDragOverThisCol = dragOverColId === col.id;
-                const isEditingThisCol = editingColId === col.id;
-                const colLetter = getExcelColumnLetter(cIdx);
-                const w = colWidths[col.id] ?? DEFAULT_COL_WIDTH;
-
-                return (
-                  <th
-                    key={col.id}
-                    data-col-id={col.id}
-                    role="columnheader"
-                    aria-selected={isColSelected}
-                    aria-label={`Column ${colLetter}: ${col.label}`}
-                    onDragOver={(e) => handleColDragOver(e, col.id)}
-                    onDrop={(e) => handleColDrop(e, col.id)}
-                    onDragEnd={handleColDragEnd}
-                    style={{ width: w, minWidth: MIN_COL_WIDTH }}
-                    className={`sticky top-0 z-sticky border-r border-b border-slate-200 p-2.5 transition-all group ${
-                      isDraggingThisCol
-                        ? "opacity-30 border-2 border-dashed border-slate-400 bg-slate-100"
-                        : isDragOverThisCol
-                          ? "border-l-4 border-l-slate-700 bg-slate-200"
-                          : isActiveStep
-                            ? "bg-slate-200 text-slate-900 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-slate-800"
-                            : isColSelected
-                              ? "bg-slate-200 text-slate-900"
-                              : "bg-slate-100 hover:bg-slate-200 text-slate-800"
-                    }`}
-                  >
-                    {isColSelected ? (
-                      <div className="absolute inset-0 pointer-events-none z-10 border border-slate-400 rounded-xs shadow-[0_0_0_1px_rgba(15,23,42,0.1)]" />
-                    ) : null}
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-1.5 min-w-0 flex-1">
-                        <div
-                          draggable={!isEditingThisCol}
-                          onDragStart={(e) => handleColDragStart(e, col.id)}
-                          className="cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-slate-300/70 transition-colors shrink-0"
-                          title="Drag handle to reorder column"
-                        >
-                          <GripVertical className="h-3.5 w-3.5 text-slate-500 hover:text-slate-800 shrink-0" />
-                        </div>
-
-                        <span className="px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 font-mono text-[10px] font-bold shrink-0">
-                          {colLetter}
-                        </span>
-
-                        {isEditingThisCol ? (
-                          <input
-                            type="text"
-                            value={editingColText}
-                            autoFocus
-                            onChange={(e) => setEditingColText(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleSaveColName();
-                              if (e.key === "Escape") setEditingColId(null);
-                            }}
-                            onBlur={handleSaveColName}
-                            onClick={(e) => e.stopPropagation()}
-                            className="font-bold text-slate-900 text-xs bg-white border border-slate-400 rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-slate-800 flex-1 min-w-22.5 shadow-xs"
-                          />
-                        ) : (
-                          <div
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStartRenameCol(col.id, col.label);
-                            }}
-                            className="flex items-center min-w-0 cursor-text hover:bg-slate-200/60 rounded px-1 py-0.5 transition-colors"
-                            title="Click to edit step name"
-                          >
-                            <span className="font-bold text-slate-900 text-xs truncate">
-                              {col.label}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteColumn(col.id);
-                        }}
-                        className="text-slate-400 hover:text-rose-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded hover:bg-rose-50 shrink-0"
-                        title="Delete Column Step"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-
-                    <ResizeHandle
-                      orientation="col"
-                      onMouseDown={(e) => handleColResizeStart(e, col.id)}
-                      onDoubleClick={() => handleColResizeDoubleClick(col.id)}
-                    />
-                  </th>
-                );
-              })}
+              {sortedCols.map((col, cIdx) => (
+                <ColumnHeaderCell
+                  key={col.id}
+                  col={col}
+                  colLetter={getExcelColumnLetter(cIdx)}
+                  width={colWidths[col.id] ?? DEFAULT_COL_WIDTH}
+                  minWidth={MIN_COL_WIDTH}
+                  isActiveStep={activeStepIndex === cIdx}
+                  isSelected={selectedColId === col.id}
+                  isDragging={draggingColId === col.id}
+                  isDragOver={dragOverColId === col.id}
+                  onDragStart={handleColDragStart}
+                  onDragOver={handleColDragOver}
+                  onDrop={handleColDrop}
+                  onDragEnd={handleColDragEnd}
+                  onResizeStart={handleColResizeStart}
+                  onResizeReset={handleColResizeDoubleClick}
+                />
+              ))}
             </tr>
           </thead>
 
           <tbody role="rowgroup" className="font-mono text-xs bg-white">
             {sortedRows.map((row, rIdx) => {
-              const isRowSelected = selectedRowId === row.id;
-              const isDraggingThisRow = draggingRowId === row.id;
-              const isDragOverThisRow = dragOverRowId === row.id;
-              const isEditingThisRow = editingRowId === row.id;
               const h = rowHeights[row.id] ?? DEFAULT_ROW_HEIGHT;
 
               return (
@@ -636,228 +543,42 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                   className={row.isInterceptor ? "bg-amber-50/30" : ""}
                   style={{ height: h }}
                 >
-                  <td
-                    role="rowheader"
-                    aria-selected={isRowSelected}
-                    aria-label={`Row ${rIdx + 1}: ${row.label}`}
-                    onDragOver={(e) => handleRowDragOver(e, row.id)}
-                    onDrop={(e) => handleRowDrop(e, row.id)}
+                  <RowHeaderCell
+                    row={row}
+                    rowNum={rIdx + 1}
+                    width={rowHeaderWidth}
+                    height={h}
+                    isSelected={selectedRowId === row.id}
+                    isDragging={draggingRowId === row.id}
+                    isDragOver={dragOverRowId === row.id}
+                    onDragStart={handleRowDragStart}
+                    onDragOver={handleRowDragOver}
+                    onDrop={handleRowDrop}
                     onDragEnd={handleRowDragEnd}
-                    style={{ width: rowHeaderWidth, height: h }}
-                    className={`sticky left-0 z-sticky p-2.5 border-r border-b border-slate-200 group transition-all ${
-                      isDraggingThisRow
-                        ? "opacity-30 border-2 border-dashed border-slate-400 bg-slate-100"
-                        : isDragOverThisRow
-                          ? "border-t-4 border-t-slate-700 bg-slate-200"
-                          : row.isInterceptor
-                            ? "bg-amber-100 text-amber-950"
-                            : isRowSelected
-                              ? "bg-slate-200 text-slate-950 font-bold"
-                              : "bg-slate-100 text-slate-800"
-                    }`}
-                  >
-                    {isRowSelected ? (
-                      <div className="absolute inset-0 pointer-events-none z-10 border border-slate-400 rounded-xs shadow-[0_0_0_1px_rgba(15,23,42,0.1)]" />
-                    ) : null}
-
-                    <div className="flex flex-col justify-center h-full space-y-1">
-                      <div className="flex items-center justify-between space-x-1.5 min-w-0">
-                        <div className="flex items-center space-x-1.5 min-w-0 flex-1">
-                          <div
-                            draggable={!isEditingThisRow}
-                            onDragStart={(e) => handleRowDragStart(e, row.id)}
-                            className="cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-slate-300/70 transition-colors shrink-0"
-                            title="Drag handle to reorder row"
-                          >
-                            <GripVertical className="h-3.5 w-3.5 text-slate-500 hover:text-slate-800 shrink-0" />
-                          </div>
-                          <span className="px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700 font-bold text-[10px] shrink-0">
-                            {rIdx + 1}
-                          </span>
-
-                          {isEditingThisRow ? (
-                            <input
-                              type="text"
-                              value={editingRowText}
-                              autoFocus
-                              onChange={(e) =>
-                                setEditingRowText(e.target.value)
-                              }
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") handleSaveRowName();
-                                if (e.key === "Escape") setEditingRowId(null);
-                              }}
-                              onBlur={handleSaveRowName}
-                              onClick={(e) => e.stopPropagation()}
-                              className="font-sans font-bold text-xs bg-white border border-slate-400 rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-slate-800 w-full min-w-0 shadow-2xs"
-                            />
-                          ) : (
-                            <div
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleStartRenameRow(row.id, row.label);
-                              }}
-                              className="flex items-center min-w-0 cursor-text hover:bg-slate-200/60 rounded px-1 py-0.5 transition-colors flex-1"
-                              title="Click to edit row name"
-                            >
-                              <span className="font-sans font-bold text-xs truncate">
-                                {row.label}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        <button
-                          onClick={() => deleteRow(row.id)}
-                          className="text-slate-400 hover:text-rose-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded hover:bg-rose-50 shrink-0"
-                          title="Delete Row"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-
-                      <div className="flex items-center space-x-1.5 pl-6.5 font-mono text-[9px]">
-                        <span className="px-1.5 py-0.2 rounded border font-semibold bg-slate-100 text-slate-600 border-slate-200 shrink-0">
-                          {row.type === "workflow" ? "SUB-WF" : "STANDARD"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <ResizeHandle
-                      orientation="row"
-                      onMouseDown={(e) => handleRowResizeStart(e, row.id)}
-                      onDoubleClick={() => handleRowResizeDoubleClick(row.id)}
-                    />
-                  </td>
+                    onResizeStart={handleRowResizeStart}
+                    onResizeReset={handleRowResizeDoubleClick}
+                  />
 
                   {sortedCols.map((col, cIdx) => {
                     const cellKey = `${row.id}:${col.id}`;
-                    const cell = matrix.cells[cellKey];
-                    const isActiveStep = activeStepIndex === cIdx;
-                    const isSelectedCell =
-                      selectedRowId === row.id && selectedColId === col.id;
-                    const isCopiedCell = copiedCellKey === cellKey;
-                    const execState = cellExecutionResults?.[cellKey];
-
-                    const actionsList = getCellActions(cell);
-                    const hasContent = actionsList.length > 0;
-
-                    const allInputs = Array.from(
-                      new Set(actionsList.flatMap((a) => a.inputs || [])),
-                    );
-                    const allOutputs = Array.from(
-                      new Set(actionsList.flatMap((a) => a.outputs || [])),
-                    );
-
-                    const issues = cellIssues[cellKey] ?? NO_ISSUES;
-                    const hasUnresolved = issues.unresolvedInputs.length > 0;
-                    const hasClash = issues.clashingOutputs.length > 0;
-
-                    const w = colWidths[col.id] ?? DEFAULT_COL_WIDTH;
-
                     return (
-                      <td
+                      <GridCell
                         key={col.id}
-                        data-cell-key={cellKey}
-                        role="gridcell"
-                        aria-selected={isSelectedCell}
-                        onClick={() => selectCell(row.id, col.id)}
-                        onDoubleClick={() => {
-                          selectCell(row.id, col.id);
-                          openModal("cellEditor");
-                        }}
-                        style={{ width: w, minWidth: MIN_COL_WIDTH, height: h }}
-                        className={`relative border-r border-b border-slate-200 p-2 align-top transition-all cursor-pointer group ${
-                          isActiveStep
-                            ? "bg-slate-50"
-                            : isSelectedCell
-                              ? "bg-slate-100/80"
-                              : isCopiedCell
-                                ? "bg-amber-50/50"
-                                : "hover:bg-slate-50/60"
-                        }`}
-                      >
-                        {isSelectedCell ? (
-                          <div className="absolute inset-0 pointer-events-none z-10 border-2 border-slate-800 shadow-sm" />
-                        ) : null}
-
-                        {isCopiedCell ? (
-                          <div className="absolute inset-0 pointer-events-none z-10 border-2 border-dashed border-amber-500 animate-pulse" />
-                        ) : null}
-
-                        {hasUnresolved || hasClash ? (
-                          <div className="flex items-center justify-end space-x-1 mb-1">
-                            {hasUnresolved ? (
-                              <span
-                                className="flex items-center space-x-1 bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[9px] font-bold"
-                                title={`Unresolved inputs: ${issues.unresolvedInputs.join(", ")}`}
-                              >
-                                <AlertTriangle className="h-3 w-3 text-amber-600" />
-                                <span>Input?</span>
-                              </span>
-                            ) : null}
-                            {hasClash ? (
-                              <span
-                                className="flex items-center space-x-1 bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded text-[9px] font-bold"
-                                title={`Clashing outputs: ${issues.clashingOutputs.join(", ")}`}
-                              >
-                                <AlertTriangle className="h-3 w-3 text-rose-600" />
-                                <span>Clash!</span>
-                              </span>
-                            ) : null}
-                          </div>
-                        ) : null}
-
-                        {hasContent ? (
-                          <div className="space-y-1">
-                            <div className="flex items-center space-x-1">
-                              <span className="bg-slate-200 text-slate-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
-                                {actionsList.length} Action
-                                {actionsList.length > 1 ? "s" : ""}
-                              </span>
-                            </div>
-
-                            {allInputs.length > 0 ? (
-                              <div className="flex flex-wrap gap-1 text-[9px]">
-                                <span className="text-slate-400">in:</span>
-                                {allInputs.map((inp) => (
-                                  <span
-                                    key={inp}
-                                    className="bg-slate-100 text-slate-700 px-1 rounded font-mono"
-                                  >
-                                    {inp}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : null}
-
-                            {allOutputs.length > 0 ? (
-                              <div className="flex flex-wrap gap-1 text-[9px]">
-                                <span className="text-slate-400">out:</span>
-                                {allOutputs.map((out) => (
-                                  <span
-                                    key={out}
-                                    className="bg-emerald-100 text-emerald-800 px-1 rounded font-mono font-bold"
-                                  >
-                                    {out}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : null}
-
-                            {execState ? (
-                              <div className="mt-1 pt-1 border-t border-slate-200 flex items-center justify-between text-[9px] text-emerald-700 font-mono">
-                                <span>✓ Ran</span>
-                                <span>{execState.latencyMs}ms</span>
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <div className="h-full flex items-center justify-center text-slate-300 text-[10px] italic">
-                            Empty
-                          </div>
-                        )}
-                      </td>
+                        cell={matrix.cells[cellKey]}
+                        cellKey={cellKey}
+                        rowId={row.id}
+                        colId={col.id}
+                        width={colWidths[col.id] ?? DEFAULT_COL_WIDTH}
+                        minWidth={MIN_COL_WIDTH}
+                        height={h}
+                        isActiveStep={activeStepIndex === cIdx}
+                        isSelected={
+                          selectedRowId === row.id && selectedColId === col.id
+                        }
+                        isCopied={copiedCellKey === cellKey}
+                        issues={cellIssues[cellKey] ?? NO_ISSUES}
+                        execState={cellExecutionResults?.[cellKey]}
+                      />
                     );
                   })}
                 </tr>
@@ -906,7 +627,9 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
         </table>
       </div>
 
-      {showFlows ? (
+      {/* Persistent flow lines are gated on the Flows toggle; the transient
+          hover dependency (from the cell editor) renders regardless. */}
+      {showFlows || activeDependency ? (
         <DependencyConnectorOverlay
           activeDependency={activeDependency}
           dependencies={dependencies}

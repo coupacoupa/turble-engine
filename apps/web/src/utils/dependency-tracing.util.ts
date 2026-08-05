@@ -1,6 +1,6 @@
 import { ActiveDependency } from "@/components/workflow-editor/dependency-connector-overlay.component";
 import { WorkflowValidationService } from "@/services/workflow-validation.service";
-import { MatrixSchema } from "@/types/matrix.types";
+import { MatrixSchema, StepEvaluationRecord } from "@/types/matrix.types";
 import { getCellActions } from "@/utils/cell-actions.util";
 
 /**
@@ -41,6 +41,151 @@ export function findProducerCellKey(
     });
   });
   return producerKey;
+}
+
+/**
+ * Data-flow edges of an executed run, cumulative up to and including
+ * `stepIndex`: for every cell executed so far, one incoming edge per consumed
+ * input from its producer (or the workflow inputs), carrying the runtime value
+ * the cell actually saw. The displayed step additionally gets outgoing edges
+ * for the outputs it just produced, pointing at their (future) consumers.
+ */
+export function computeExecutionFlowEdges(
+  matrix: MatrixSchema,
+  steps: StepEvaluationRecord[],
+  stepIndex: number,
+): ActiveDependency[] {
+  const edges: ActiveDependency[] = [];
+  const seen = new Set<string>();
+  const last = Math.min(stepIndex, steps.length - 1);
+
+  const colOrderMap = new Map(matrix.columns.map((c) => [c.id, c.order]));
+  const rowOrderMap = new Map(matrix.rows.map((r) => [r.id, r.order]));
+
+  for (let i = 0; i <= last; i++) {
+    const step = steps[i]!;
+    const isDisplayedStep = i === last;
+
+    for (const res of step.cellResults || []) {
+      if (res.status === "skipped") continue;
+      const targetCellKey = `${res.rowId}:${res.colId}`;
+      const cell = matrix.cells[targetCellKey];
+      if (!cell) continue;
+
+      const actionsList = getCellActions(cell);
+      const inputs = new Set(actionsList.flatMap((a) => a.inputs || []));
+      inputs.forEach((inpKey) => {
+        const producerKey = findProducerCellKey(
+          matrix,
+          res.rowId,
+          res.colId,
+          inpKey,
+        );
+        const isWfInput =
+          !producerKey && (matrix.inputs || []).some((f) => f.key === inpKey);
+        if (!producerKey && !isWfInput) return;
+
+        const id = `${producerKey || "wf"}->${targetCellKey}:${inpKey}`;
+        if (seen.has(id)) return;
+        seen.add(id);
+
+        edges.push({
+          sourceCellKey: producerKey,
+          isWorkflowInput: producerKey ? undefined : true,
+          targetCellKey,
+          variableName: inpKey,
+          type: "incoming",
+          value: step.initialPayload?.[inpKey],
+        });
+      });
+
+      // Outgoing edges only for the step currently displayed — earlier steps'
+      // outputs already appear as their consumers' incoming edges.
+      if (!isDisplayedStep) continue;
+
+      const currColOrder = colOrderMap.get(res.colId);
+      const currRowOrder = rowOrderMap.get(res.rowId);
+      if (currColOrder === undefined || currRowOrder === undefined) continue;
+
+      const outputs = new Set(actionsList.flatMap((a) => a.outputs || []));
+      outputs.forEach((outKey) => {
+        const producedValue =
+          res.mutatedPayload?.[outKey] ?? step.finalPayload?.[outKey];
+
+        Object.values(matrix.cells || {}).forEach((otherCell) => {
+          const cOrder = colOrderMap.get(otherCell.colId);
+          const rOrder = rowOrderMap.get(otherCell.rowId);
+          if (cOrder === undefined || rOrder === undefined) return;
+
+          const isSucceeding =
+            cOrder > currColOrder ||
+            (cOrder === currColOrder && rOrder > currRowOrder);
+          if (!isSucceeding) return;
+
+          const consumes = getCellActions(otherCell).some((a) =>
+            (a.inputs || []).includes(outKey),
+          );
+          if (!consumes) return;
+
+          const consumerKey = `${otherCell.rowId}:${otherCell.colId}`;
+          const id = `${targetCellKey}->${consumerKey}:${outKey}:out`;
+          if (seen.has(id)) return;
+          seen.add(id);
+
+          edges.push({
+            sourceCellKey: targetCellKey,
+            targetCellKey: consumerKey,
+            variableName: outKey,
+            type: "outgoing",
+            value: producedValue,
+          });
+        });
+      });
+    }
+  }
+  return edges;
+}
+
+/**
+ * Producer → consumer edges for a single variable across the matrix: one edge
+ * into every cell that consumes it, from its resolved producer (or the
+ * workflow inputs). Used for the inspector's variable-hover highlight.
+ */
+export function computeVariableFlowEdges(
+  matrix: MatrixSchema,
+  variableKey: string,
+  runtimePayload?: Record<string, any>,
+): ActiveDependency[] {
+  const edges: ActiveDependency[] = [];
+  const value = runtimePayload?.[variableKey];
+
+  Object.values(matrix.cells || {}).forEach((cell) => {
+    const consumes = getCellActions(cell).some((a) =>
+      (a.inputs || []).includes(variableKey),
+    );
+    if (!consumes) return;
+
+    const targetCellKey = `${cell.rowId}:${cell.colId}`;
+    const producerKey = findProducerCellKey(
+      matrix,
+      cell.rowId,
+      cell.colId,
+      variableKey,
+    );
+    const isWfInput =
+      !producerKey && (matrix.inputs || []).some((f) => f.key === variableKey);
+    if (!producerKey && !isWfInput) return;
+
+    edges.push({
+      sourceCellKey: producerKey,
+      isWorkflowInput: producerKey ? undefined : true,
+      targetCellKey,
+      variableName: variableKey,
+      type: "incoming",
+      value,
+    });
+  });
+  return edges;
 }
 
 /**
