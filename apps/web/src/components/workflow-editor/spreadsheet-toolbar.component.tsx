@@ -1,15 +1,11 @@
 import {
-  CellSchema,
-  DomainRowSchema,
   InputValueType,
-  MatrixSchema,
   RowType,
-  StepColumnSchema,
   WorkflowInputField,
 } from "@/types/matrix.types";
+import { useMatrixEditorStore } from "@/stores/matrix-editor.store";
 import {
   ArrowLeft,
-  ArrowRight,
   Database,
   Edit3,
   FileText,
@@ -22,54 +18,39 @@ import {
 import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
-export type WorkflowStudioTab = "design" | "test";
-
 interface SpreadsheetToolbarProps {
-  matrix: MatrixSchema;
-  selectedRow?: DomainRowSchema;
-  selectedCol?: StepColumnSchema;
-  selectedCell?: CellSchema;
-  onUpdateName: (name: string) => void;
-  onUpdateDescription: (description: string) => void;
-  onAddColumn: () => void;
-  onAddRow: (type: RowType) => void;
   onBackToDashboard: () => void;
-  onOpenValidation: () => void;
   onExportJson: () => void;
   onPublish?: () => void;
-  /** Highest published version; 0 = never published. */
-  latestVersion?: number;
   isPublishing?: boolean;
-  saveState?: "idle" | "saving" | "saved" | "error";
-  onUpdateInputs?: (inputs: WorkflowInputField[]) => void;
-  showFlows?: boolean;
-  onToggleFlows?: () => void;
-  isTestInspectorOpen?: boolean;
-  onToggleTestInspector?: () => void;
 }
 
 export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
-  matrix,
-  selectedRow,
-  selectedCol,
-  selectedCell,
-  onUpdateName,
-  onUpdateDescription,
-  onAddColumn,
-  onAddRow,
   onBackToDashboard,
-  onOpenValidation,
   onExportJson,
   onPublish,
-  latestVersion = 0,
   isPublishing = false,
-  saveState = "idle",
-  onUpdateInputs,
-  showFlows = true,
-  onToggleFlows,
-  isTestInspectorOpen = false,
-  onToggleTestInspector,
 }) => {
+  // Store subscriptions & direct action calls
+  const matrix = useMatrixEditorStore((s) => s.matrix);
+  const saveState = useMatrixEditorStore((s) => s.saveState);
+  const latestVersion = useMatrixEditorStore((s) => s.latestVersion);
+  const showFlows = useMatrixEditorStore((s) => s.showFlows);
+  const toggleFlows = useMatrixEditorStore((s) => s.toggleFlows);
+  const isInspectorModalOpen = useMatrixEditorStore(
+    (s) => s.isInspectorModalOpen,
+  );
+  const setIsInspectorModalOpen = useMatrixEditorStore(
+    (s) => s.setIsInspectorModalOpen,
+  );
+  const setIsValidating = useMatrixEditorStore((s) => s.setIsValidating);
+
+  const updateName = useMatrixEditorStore((s) => s.updateName);
+  const updateDescription = useMatrixEditorStore((s) => s.updateDescription);
+  const updateInputs = useMatrixEditorStore((s) => s.updateInputs);
+  const addColumn = useMatrixEditorStore((s) => s.addColumn);
+  const addRow = useMatrixEditorStore((s) => s.addRow);
+
   const [isInputsModalOpen, setIsInputsModalOpen] = useState(false);
   const [isOutputsModalOpen, setIsOutputsModalOpen] = useState(false);
 
@@ -83,6 +64,8 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
   const [newKey, setNewKey] = useState("");
   const [newType, setNewType] = useState<InputValueType>("string");
   const [newDefaultVal, setNewDefaultVal] = useState("");
+
+  if (!matrix) return null;
 
   const inputs = matrix.inputs || [];
 
@@ -110,7 +93,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
         matrix.columns.find((c) => c.id === cell.colId)?.label || cell.colId;
       const locationLabel = `${rowLabel} [${colLabel}]`;
 
-      // From table_rule cell mutations
       if (cell.action === "table_rule" && cell.tableRuleConfig?.rules) {
         cell.tableRuleConfig.rules.forEach((rule) => {
           if (rule.mutations) {
@@ -130,7 +112,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
         });
       }
 
-      // From expression outputs
       if (
         cell.action === "expression" &&
         cell.expressionConfig?.outputVariable
@@ -141,7 +122,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
         });
       }
 
-      // From sub-workflow output mappings
       if (
         cell.action === "trigger_sub_workflow" &&
         cell.subWorkflowConfig?.outputMapping
@@ -157,7 +137,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
       }
     });
 
-    // Also include explicit matrix.outputSchema if defined
     if (matrix.outputSchema) {
       matrix.outputSchema.forEach((out) => {
         outputsSet.set(out.key, {
@@ -193,15 +172,12 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
       defaultValue: parsedDefault,
     };
 
-    const updated = [...inputs, newInput];
-    if (onUpdateInputs) onUpdateInputs(updated);
-
+    updateInputs([...inputs, newInput]);
     setNewKey("");
     setNewType("string");
     setNewDefaultVal("");
   };
 
-  // Inline Edit Key Name or Type
   const handleUpdateItem = (
     id: string,
     updates: Partial<WorkflowInputField>,
@@ -209,21 +185,19 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
     const updated = inputs.map((item) =>
       item.id === id ? { ...item, ...updates } : item,
     );
-    if (onUpdateInputs) onUpdateInputs(updated);
+    updateInputs(updated);
   };
 
   const handleRemoveInput = (id: string) => {
-    const updated = inputs.filter((i) => i.id !== id);
-    if (onUpdateInputs) onUpdateInputs(updated);
+    updateInputs(inputs.filter((i) => i.id !== id));
   };
 
   const handleClearAllInputs = () => {
     if (confirm("Clear all input parameters?")) {
-      if (onUpdateInputs) onUpdateInputs([]);
+      updateInputs([]);
     }
   };
 
-  // Parse Bulk JSON Import
   const handleImportJsonPayload = () => {
     setJsonError("");
     try {
@@ -262,14 +236,11 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
         },
       );
 
-      // Merge with existing avoiding duplicates
       const mergedMap = new Map<string, WorkflowInputField>();
       inputs.forEach((i) => mergedMap.set(i.key, i));
       newInputsList.forEach((i) => mergedMap.set(i.key, i));
 
-      const updated = Array.from(mergedMap.values());
-      if (onUpdateInputs) onUpdateInputs(updated);
-
+      updateInputs(Array.from(mergedMap.values()));
       setRawJsonText("");
       setIsPasteJsonMode(false);
     } catch (err: any) {
@@ -281,7 +252,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
     <div className="bg-white border-b border-slate-200 font-sans text-xs shrink-0 select-none w-full relative z-sticky shadow-xs">
       {/* 1. Flush Edge-to-Edge Header Bar */}
       <div className="px-4 py-2 flex items-center justify-between border-b border-slate-100 flex-wrap gap-2">
-        {/* Left: Back button, Logo, and Inline Editable Title/Description */}
         <div className="flex items-center space-x-3 flex-1 min-w-[280px]">
           <button
             onClick={onBackToDashboard}
@@ -307,13 +277,12 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
 
           <div className="h-4 w-px bg-slate-200 shrink-0" />
 
-          {/* Editable Title & Subtitle */}
           <div className="flex-1 space-y-0.5 max-w-xs min-w-0">
             <div className="flex items-center space-x-2 group min-w-0">
               <input
                 type="text"
                 value={matrix.name}
-                onChange={(e) => onUpdateName(e.target.value)}
+                onChange={(e) => updateName(e.target.value)}
                 placeholder="Workflow Matrix Name"
                 className="font-bold text-slate-900 text-xs tracking-tight bg-transparent hover:bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded px-1.5 py-0.5 w-full transition-all truncate"
               />
@@ -323,16 +292,14 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
             <input
               type="text"
               value={matrix.description}
-              onChange={(e) => onUpdateDescription(e.target.value)}
+              onChange={(e) => updateDescription(e.target.value)}
               placeholder="Add description..."
               className="text-slate-500 text-[10px] font-mono bg-transparent hover:bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 rounded px-1.5 py-0.5 w-full transition-all truncate"
             />
           </div>
         </div>
 
-        {/* Right: Global Actions */}
         <div className="flex items-center space-x-2">
-          {/* Autosave indicator */}
           <span
             className={`text-[10px] font-mono font-semibold select-none ${
               saveState === "error"
@@ -352,7 +319,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                   : ""}
           </span>
 
-          {/* Published version badge */}
           <span
             className="text-[10px] font-mono bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded font-semibold select-none"
             title="Latest published version"
@@ -368,7 +334,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
             <span>Export</span>
           </button>
 
-          {onPublish && (
+          {onPublish ? (
             <button
               onClick={onPublish}
               disabled={isPublishing}
@@ -377,14 +343,13 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
             >
               <span>{isPublishing ? "Publishing…" : "Publish"}</span>
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
-      {/* 2. Flush Edge-to-Edge Sub-Bar (Clean Compact Workflow Tools) */}
+      {/* 2. Flush Edge-to-Edge Sub-Bar */}
       <div className="px-4 py-1.5 bg-slate-100 min-h-[38px] flex items-center justify-between font-mono gap-3">
         <div className="flex items-center justify-between w-full space-x-3">
-          {/* Cluster 1: Structure Controls (+ Add: Row | Sub-WF | Step) */}
           <div className="flex items-center space-x-1 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs shrink-0 font-mono text-[11px]">
             <div className="flex items-center space-x-1 px-2 py-0.5 text-slate-500 font-bold select-none">
               <Plus className="h-3.5 w-3.5 text-slate-600" />
@@ -392,21 +357,21 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
             </div>
             <div className="h-3.5 w-px bg-slate-200 shrink-0" />
             <button
-              onClick={() => onAddRow("standard")}
+              onClick={() => addRow("standard")}
               className="px-2.5 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-semibold transition-colors cursor-pointer"
               title="Add Standard Row"
             >
               Row
             </button>
             <button
-              onClick={() => onAddRow("workflow")}
+              onClick={() => addRow("workflow")}
               className="px-2.5 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-semibold transition-colors cursor-pointer"
               title="Add Sub-Workflow Row"
             >
               Sub-WF
             </button>
             <button
-              onClick={onAddColumn}
+              onClick={addColumn}
               className="px-2.5 py-0.5 rounded hover:bg-slate-100 text-slate-700 font-semibold transition-colors cursor-pointer"
               title="Add Step Column"
             >
@@ -416,7 +381,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
 
           <div className="h-4 w-px bg-slate-300 shrink-0" />
 
-          {/* Cluster 2: Workflow Inputs Summary Button */}
           <button
             data-workflow-inputs-button="true"
             onClick={() => setIsInputsModalOpen(true)}
@@ -431,7 +395,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
 
           <div className="h-4 w-px bg-slate-300 shrink-0" />
 
-          {/* Cluster 3: Workflow Outputs Summary Button (Read-only) */}
           <button
             onClick={() => setIsOutputsModalOpen(true)}
             className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all cursor-pointer text-[11px] font-mono shadow-2xs shrink-0"
@@ -445,9 +408,8 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
 
           <div className="h-4 w-px bg-slate-300 shrink-0" />
 
-          {/* Cluster 4: Show/Hide Dependency Flows Toggle */}
           <button
-            onClick={onToggleFlows}
+            onClick={toggleFlows}
             className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs shrink-0 ${
               showFlows
                 ? "bg-slate-800 hover:bg-slate-700 text-white border-slate-700"
@@ -464,16 +426,15 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
 
           <div className="h-4 w-px bg-slate-300 shrink-0" />
 
-          {/* Cluster 5: Direct Test & Execution Inspector Button */}
           <button
-            onClick={onToggleTestInspector}
+            onClick={() => setIsInspectorModalOpen((prev) => !prev)}
             className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs shrink-0 ${
-              isTestInspectorOpen
+              isInspectorModalOpen
                 ? "bg-slate-800 hover:bg-slate-700 text-white border-slate-700"
                 : "bg-white hover:bg-slate-100 text-slate-600 border-slate-200"
             }`}
             title={
-              isTestInspectorOpen
+              isInspectorModalOpen
                 ? "Close Execution Inspector"
                 : "Open Execution Inspector"
             }
@@ -483,22 +444,17 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
 
           <div className="flex-1 min-w-0" />
 
-          {/* Cluster 6: Grid stats */}
           <span className="bg-slate-200/70 text-slate-600 font-bold text-[10px] px-2.5 py-1 rounded shrink-0">
             {matrix.rows.length} Rows × {matrix.columns.length} Cols
           </span>
         </div>
       </div>
 
-      {/* 1. High-Density Enterprise Input Schema Setup Modal.
-          Portaled to <body>: the toolbar wrapper is `relative z-sticky`, which
-          creates a stacking context that would trap this z-modal backdrop
-          UNDER the sheet's sticky headers and the docked inspector panel. */}
+      {/* Inputs Setup Modal */}
       {isInputsModalOpen &&
         createPortal(
           <div className="fixed inset-0 z-modal bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
             <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden font-sans flex flex-col max-h-[85vh]">
-              {/* Modal Header */}
               <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
                 <div className="flex items-center space-x-3">
                   <div className="p-2 rounded-xl bg-slate-100 text-slate-600">
@@ -544,10 +500,8 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                 </div>
               </div>
 
-              {/* Modal Main Body */}
               <div className="p-5 space-y-4 flex-1 overflow-y-auto min-h-0 font-sans">
                 {isPasteJsonMode ? (
-                  /* Bulk JSON Extraction Mode */
                   <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
                     <div className="flex items-center justify-between">
                       <div className="text-xs font-bold text-slate-800 font-mono flex items-center space-x-1.5">
@@ -583,11 +537,11 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                       className="w-full bg-white border border-slate-200 rounded-lg p-3 text-xs font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-400"
                     />
 
-                    {jsonError && (
+                    {jsonError ? (
                       <p className="text-xs font-mono text-red-600 font-bold">
                         {jsonError}
                       </p>
-                    )}
+                    ) : null}
 
                     <div className="flex justify-end space-x-2 pt-1">
                       <button
@@ -606,9 +560,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                     </div>
                   </div>
                 ) : (
-                  /* Standard Data Table & Form Mode */
                   <>
-                    {/* Quick Add Form */}
                     <form
                       onSubmit={handleAddInput}
                       className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2.5"
@@ -660,7 +612,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                       </div>
                     </form>
 
-                    {/* Filter & Batch Actions Bar */}
                     <div className="flex items-center justify-between gap-3 font-mono">
                       <div className="relative flex-1">
                         <Search className="h-3.5 w-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -677,18 +628,17 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                         <span className="text-[11px] text-slate-500 font-bold">
                           {filteredInputs.length} of {inputs.length} Items
                         </span>
-                        {inputs.length > 0 && (
+                        {inputs.length > 0 ? (
                           <button
                             onClick={handleClearAllInputs}
                             className="px-2 py-1 rounded text-red-600 hover:bg-red-50 text-[11px] font-bold transition-colors cursor-pointer"
                           >
                             Clear All
                           </button>
-                        )}
+                        ) : null}
                       </div>
                     </div>
 
-                    {/* High-Density Spreadsheet Table View */}
                     <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs bg-white">
                       <div className="max-h-[320px] overflow-y-auto">
                         <table className="w-full border-collapse text-left text-xs font-mono">
@@ -725,7 +675,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                                     {idx + 1}
                                   </td>
 
-                                  {/* KEY Name (Inline Editable) */}
                                   <td className="py-1.5 px-3">
                                     <input
                                       type="text"
@@ -739,7 +688,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                                     />
                                   </td>
 
-                                  {/* Value Type Dropdown */}
                                   <td className="py-1.5 px-3">
                                     <select
                                       value={inp.type}
@@ -759,7 +707,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                                     </select>
                                   </td>
 
-                                  {/* Default Value */}
                                   <td className="py-1.5 px-3">
                                     <input
                                       type="text"
@@ -778,7 +725,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                                     />
                                   </td>
 
-                                  {/* Actions */}
                                   <td className="py-1.5 px-3 text-center">
                                     <button
                                       onClick={() => handleRemoveInput(inp.id)}
@@ -797,118 +743,6 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
                     </div>
                   </>
                 )}
-              </div>
-
-              {/* Modal Footer */}
-              <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0 font-mono">
-                <span className="text-xs text-slate-500">
-                  {inputs.length} parameters ready for workflow execution
-                </span>
-
-                <button
-                  onClick={() => setIsInputsModalOpen(false)}
-                  className="px-5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-2xs cursor-pointer"
-                >
-                  Done & Close
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
-
-      {/* 2. Workflow Decision Outputs Inspector Modal (Read-only). Portaled for the same stacking-context reason. */}
-      {isOutputsModalOpen &&
-        createPortal(
-          <div className="fixed inset-0 z-modal bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden font-sans flex flex-col max-h-[85vh]">
-              <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
-                <div className="flex items-center space-x-2.5">
-                  <div className="p-2 rounded-xl bg-slate-100 text-slate-600">
-                    <ArrowRight className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <h3 className="font-bold text-slate-900 text-sm">
-                        Derived Decision Outputs (Read-Only)
-                      </h3>
-                      <span className="bg-slate-100 text-slate-700 text-[10px] font-bold font-mono px-2 py-0.5 rounded-full border border-slate-200">
-                        {derivedOutputs.length} Output Fields
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 font-mono">
-                      Output decision fields produced by grid cell rules &
-                      expressions
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsOutputsModalOpen(false)}
-                  className="p-1 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="p-5 space-y-4 flex-1 overflow-y-auto min-h-0 font-sans">
-                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs bg-white">
-                  <div className="max-h-[360px] overflow-y-auto">
-                    <table className="w-full border-collapse text-left text-xs font-mono">
-                      <thead className="bg-slate-100/90 text-slate-600 sticky top-0 z-10 border-b border-slate-200 text-[10px] uppercase font-bold tracking-wider">
-                        <tr>
-                          <th className="py-2 px-3 w-10 text-center">#</th>
-                          <th className="py-2 px-3">Output Field Key</th>
-                          <th className="py-2 px-3 w-36">Data Type</th>
-                          <th className="py-2 px-3">Source Execution Cell</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-slate-800">
-                        {derivedOutputs.length === 0 ? (
-                          <tr>
-                            <td
-                              colSpan={4}
-                              className="py-8 text-center text-slate-400 text-xs italic"
-                            >
-                              No output mutations or expressions defined in grid
-                              cells yet.
-                            </td>
-                          </tr>
-                        ) : (
-                          derivedOutputs.map(({ key, type, source }, idx) => (
-                            <tr
-                              key={key}
-                              className="hover:bg-slate-50/80 transition-colors"
-                            >
-                              <td className="py-2 px-3 text-center text-slate-400 text-[11px]">
-                                {idx + 1}
-                              </td>
-                              <td className="py-2 px-3 font-bold text-xs text-slate-900">
-                                {key}
-                              </td>
-                              <td className="py-2 px-3">
-                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-semibold">
-                                  {type}
-                                </span>
-                              </td>
-                              <td className="py-2 px-3 text-slate-500 text-[11px]">
-                                {source}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-              <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex justify-end shrink-0 font-mono">
-                <button
-                  onClick={() => setIsOutputsModalOpen(false)}
-                  className="px-5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-2xs cursor-pointer"
-                >
-                  Close Inspector
-                </button>
               </div>
             </div>
           </div>,

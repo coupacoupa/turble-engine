@@ -1,47 +1,40 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  useMemo,
-} from "react";
+import { DraggableModal } from "@/components/common/draggable-modal.component";
+import { WorkflowValidationService } from "@/services/workflow-validation.service";
 import {
-  X,
-  Save,
-  Plus,
-  Trash2,
-  Move,
-  Search,
-  ArrowUp,
-  ArrowDown,
-  Layers,
-  Sliders,
-  Sparkles,
-  AlertTriangle,
-  ChevronDown,
-} from "lucide-react";
-import {
-  MatrixSchema,
-  DomainRowSchema,
-  StepColumnSchema,
-  CellSchema,
-  CellActionType,
   CellActionItem,
+  CellActionType,
+  CellSchema,
+  DomainRowSchema,
+  MatrixSchema,
+  StepColumnSchema,
   TableRuleMatch,
 } from "@/types/matrix.types";
-import { WorkflowValidationService } from "@/services/workflow-validation.service";
 import { getCellActions } from "@/utils/cell-actions.util";
-import { DraggableModal } from "@/components/common/draggable-modal.component";
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  Layers,
+  Plus,
+  Save,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+
+import { useMatrixEditorStore } from "@/stores/matrix-editor.store";
 
 interface CellEditorModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
   matrix?: MatrixSchema;
   row?: DomainRowSchema;
   column?: StepColumnSchema;
   cell?: CellSchema;
   availableSubWorkflows?: MatrixSchema[];
-  onSaveCell: (updatedCell: CellSchema) => void;
+  onSaveCell?: (updatedCell: CellSchema) => void;
   onCreateMatrix?: () => void;
   onSelectSubWorkflow?: (subWorkflowId: string) => void;
   onHoverInput?: (inputKey: string | null) => void;
@@ -59,18 +52,40 @@ const MIN_WIDTH = 500;
 const MIN_HEIGHT = 480;
 
 export const CellEditorModal: React.FC<CellEditorModalProps> = ({
-  isOpen,
-  onClose,
-  matrix,
-  row,
-  column,
-  cell,
+  isOpen: propsIsOpen,
+  onClose: propsOnClose,
+  matrix: propsMatrix,
+  row: propsRow,
+  column: propsColumn,
+  cell: propsCell,
   availableSubWorkflows = [],
-  onSaveCell,
+  onSaveCell: propsOnSaveCell,
   onCreateMatrix,
-  onSelectSubWorkflow,
-  onHoverInput,
+  onSelectSubWorkflow: propsOnSelectSubWorkflow,
+  onHoverInput: propsOnHoverInput,
 }) => {
+  const storeIsOpen = useMatrixEditorStore((s) => s.isDrawerOpen);
+  const storeSetIsOpen = useMatrixEditorStore((s) => s.setIsDrawerOpen);
+  const storeMatrix = useMatrixEditorStore((s) => s.matrix);
+  const storeRow = useMatrixEditorStore((s) => s.selectedRow);
+  const storeColumn = useMatrixEditorStore((s) => s.selectedCol);
+  const storeCell = useMatrixEditorStore((s) => s.selectedCell);
+
+  const isOpen = propsIsOpen ?? storeIsOpen;
+  const onClose = propsOnClose ?? (() => storeSetIsOpen(false));
+  const matrix = propsMatrix ?? storeMatrix;
+  const row = propsRow ?? storeRow;
+  const column = propsColumn ?? storeColumn;
+  const cell = propsCell ?? storeCell;
+  const onSaveCell =
+    propsOnSaveCell ?? ((c) => useMatrixEditorStore.getState().saveCell(c));
+  const onSelectSubWorkflow =
+    propsOnSelectSubWorkflow ??
+    ((id) => useMatrixEditorStore.getState().selectSubWorkflow(id));
+  const onHoverInput =
+    propsOnHoverInput ??
+    ((key) => useMatrixEditorStore.getState().hoverInputKey(key));
+
   // Multi-action list state
   const [actions, setActions] = useState<CellActionItem[]>([]);
   const [activeActionId, setActiveActionId] = useState<string>("");
