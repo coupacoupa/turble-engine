@@ -9,8 +9,10 @@ import {
   StepEvaluationRecord,
 } from "@/types/matrix.types";
 import { ActiveDependency } from "@/components/workflow-editor/dependency-connector-overlay.component";
-import { getCellActions } from "@/utils/cell-actions.util";
 import { WorkflowValidationService } from "@/services/workflow-validation.service";
+import { findProducerCellKey } from "@/utils/dependency-tracing.util";
+
+export type EditorModal = "cellEditor";
 
 export interface MatrixEditorState {
   // Core Domain State
@@ -18,22 +20,22 @@ export interface MatrixEditorState {
   latestVersion: number;
   saveState: "idle" | "saving" | "saved" | "error";
 
-  // Selection & Copy/Paste State
-  selectedRow: DomainRowSchema | undefined;
-  selectedCol: StepColumnSchema | undefined;
-  selectedCell: CellSchema | undefined;
+  // Selection & Copy/Paste State — IDs only; row/col/cell objects are derived
+  // from `matrix` via the exported selectors so they can never go stale.
+  selectedRowId: string | null;
+  selectedColId: string | null;
   copiedCell: CellSchema | null;
   copiedCellKey: string | null;
 
-  // Dependency Flow State
+  // Transient hover highlight for the dependency overlay. The full dependency
+  // edge list is derived where it renders (see computeCellDependencies).
   activeDependency: ActiveDependency | null;
-  activeDependencies: ActiveDependency[];
   showFlows: boolean;
 
-  // Modals & Panels State
-  isDrawerOpen: boolean;
-  isValidating: boolean;
-  isInspectorModalOpen: boolean;
+  // Modals & Panels State. activeModal makes overlapping modals
+  // unrepresentable; the inspector is a docked panel that may coexist.
+  activeModal: EditorModal | null;
+  isInspectorOpen: boolean;
 
   // Execution Inspector & Hover State
   testInputPayload: Record<string, any>;
@@ -49,13 +51,10 @@ export interface MatrixEditorState {
   ) => void;
   setSaveState: (state: "idle" | "saving" | "saved" | "error") => void;
   setLatestVersion: (v: number) => void;
+  resetEditor: () => void;
 
   // Selection Actions
-  selectCell: (
-    row?: DomainRowSchema,
-    col?: StepColumnSchema,
-    cell?: CellSchema,
-  ) => void;
+  selectCell: (rowId: string | null, colId: string | null) => void;
   deselectAll: () => void;
 
   // Grid Mutation Actions
@@ -85,9 +84,9 @@ export interface MatrixEditorState {
 
   // UI Toggles
   toggleFlows: () => void;
-  setIsDrawerOpen: (open: boolean) => void;
-  setIsValidating: (open: boolean) => void;
-  setIsInspectorModalOpen: (
+  openModal: (modal: EditorModal) => void;
+  closeModal: () => void;
+  setIsInspectorOpen: (
     openOrUpdater: boolean | ((prev: boolean) => boolean),
   ) => void;
   setTestInputPayload: (
@@ -99,6 +98,30 @@ export interface MatrixEditorState {
   setHoveredVariableKey: (key?: string) => void;
 }
 
+// Derived-selection selectors. Because unchanged rows/cols/cells keep their
+// object identity across matrix updates, these stay reference-stable and only
+// re-render subscribers when the selected entity itself changes.
+export const selectSelectedRow = (
+  s: MatrixEditorState,
+): DomainRowSchema | undefined =>
+  s.selectedRowId
+    ? s.matrix?.rows.find((r) => r.id === s.selectedRowId)
+    : undefined;
+
+export const selectSelectedCol = (
+  s: MatrixEditorState,
+): StepColumnSchema | undefined =>
+  s.selectedColId
+    ? s.matrix?.columns.find((c) => c.id === s.selectedColId)
+    : undefined;
+
+export const selectSelectedCell = (
+  s: MatrixEditorState,
+): CellSchema | undefined =>
+  s.selectedRowId && s.selectedColId
+    ? s.matrix?.cells[`${s.selectedRowId}:${s.selectedColId}`]
+    : undefined;
+
 const getInitialShowFlows = (): boolean => {
   try {
     return localStorage.getItem("turble_show_flows") === "true";
@@ -107,24 +130,25 @@ const getInitialShowFlows = (): boolean => {
   }
 };
 
-export const useMatrixEditorStore = create<MatrixEditorState>((set, get) => ({
+const initialEditorState = {
   matrix: undefined,
   latestVersion: 0,
   saveState: "idle",
-  selectedRow: undefined,
-  selectedCol: undefined,
-  selectedCell: undefined,
+  selectedRowId: null,
+  selectedColId: null,
   copiedCell: null,
   copiedCellKey: null,
   activeDependency: null,
-  activeDependencies: [],
-  showFlows: getInitialShowFlows(),
-  isDrawerOpen: false,
-  isValidating: false,
-  isInspectorModalOpen: false,
+  activeModal: null,
+  isInspectorOpen: false,
   testInputPayload: {},
   hoveredStepRecord: undefined,
   hoveredVariableKey: undefined,
+} satisfies Partial<MatrixEditorState>;
+
+export const useMatrixEditorStore = create<MatrixEditorState>((set, get) => ({
+  ...initialEditorState,
+  showFlows: getInitialShowFlows(),
 
   setMatrix: (matrixOrUpdater) =>
     set((state) => ({
@@ -137,148 +161,24 @@ export const useMatrixEditorStore = create<MatrixEditorState>((set, get) => ({
   setSaveState: (saveState) => set({ saveState }),
   setLatestVersion: (latestVersion) => set({ latestVersion }),
 
-  selectCell: (row, col, cell) => {
-    const { matrix } = get();
-    if (!matrix || !row || !col) {
-      set({
-        selectedRow: row,
-        selectedCol: col,
-        selectedCell: cell,
-        activeDependency: null,
-        activeDependencies: [],
-      });
-      return;
-    }
+  // Clears everything workflow-specific (keeps the showFlows preference) so a
+  // freshly opened workflow never sees the previous one's state.
+  resetEditor: () => set(initialEditorState),
 
-    const currentCellKey = `${row.id}:${col.id}`;
-    const deps: ActiveDependency[] = [];
-
-    const colOrderMap = new Map(matrix.columns.map((c) => [c.id, c.order]));
-    const rowOrderMap = new Map(matrix.rows.map((r) => [r.id, r.order]));
-
-    const actionsList = getCellActions(cell);
-    const consumedInputs = Array.from(
-      new Set(actionsList.flatMap((a) => a.inputs || [])),
-    );
-    const producedOutputs = Array.from(
-      new Set(actionsList.flatMap((a) => a.outputs || [])),
-    );
-
-    // 1. Trace Incoming Dependencies
-    consumedInputs.forEach((inpKey) => {
-      let producerKey: string | undefined = undefined;
-      Object.values(matrix.cells || {}).forEach((otherCell) => {
-        if (otherCell.rowId === row.id && otherCell.colId === col.id) return;
-        const cOrder = colOrderMap.get(otherCell.colId);
-        const rOrder = rowOrderMap.get(otherCell.rowId);
-
-        if (cOrder === undefined || rOrder === undefined) return;
-        const isPreceding =
-          cOrder < col.order || (cOrder === col.order && rOrder < row.order);
-        if (!isPreceding) return;
-
-        const otherActions = getCellActions(otherCell);
-        otherActions.forEach((act) => {
-          if ((act.outputs || []).includes(inpKey)) {
-            producerKey = `${otherCell.rowId}:${otherCell.colId}`;
-          }
-        });
-      });
-
-      if (producerKey) {
-        deps.push({
-          sourceCellKey: producerKey,
-          targetCellKey: currentCellKey,
-          variableName: inpKey,
-          type: "incoming",
-        });
-        return;
-      }
-
-      const isWfInput = (matrix.inputs || []).some((i) => i.key === inpKey);
-      if (isWfInput) {
-        deps.push({
-          isWorkflowInput: true,
-          targetCellKey: currentCellKey,
-          variableName: inpKey,
-          type: "incoming",
-        });
-      }
-    });
-
-    // 2. Trace Outgoing Dependencies & Clashes
-    producedOutputs.forEach((outKey) => {
-      const clashSources =
-        WorkflowValidationService.getAllOutputClashingSources(
-          outKey,
-          matrix,
-          row.id,
-          col.id,
-        );
-      clashSources.forEach((src) => {
-        deps.push({
-          sourceCellKey: src.cellKey,
-          isWorkflowInput: src.isWorkflowInput,
-          targetCellKey: currentCellKey,
-          variableName: outKey,
-          type: "clash",
-        });
-      });
-
-      Object.values(matrix.cells || {}).forEach((otherCell) => {
-        if (otherCell.rowId === row.id && otherCell.colId === col.id) return;
-        const cOrder = colOrderMap.get(otherCell.colId);
-        const rOrder = rowOrderMap.get(otherCell.rowId);
-
-        if (cOrder === undefined || rOrder === undefined) return;
-        const isSucceeding =
-          cOrder > col.order || (cOrder === col.order && rOrder > row.order);
-        if (!isSucceeding) return;
-
-        const otherActions = getCellActions(otherCell);
-        const alsoProducesOutput = otherActions.some((act) =>
-          (act.outputs || []).includes(outKey),
-        );
-        if (alsoProducesOutput) {
-          deps.push({
-            sourceCellKey: currentCellKey,
-            targetCellKey: `${otherCell.rowId}:${otherCell.colId}`,
-            variableName: outKey,
-            type: "clash",
-          });
-        }
-
-        otherActions.forEach((act) => {
-          if ((act.inputs || []).includes(outKey)) {
-            deps.push({
-              sourceCellKey: currentCellKey,
-              targetCellKey: `${otherCell.rowId}:${otherCell.colId}`,
-              variableName: outKey,
-              type: "outgoing",
-            });
-          }
-        });
-      });
-    });
-
+  selectCell: (rowId, colId) =>
     set({
-      selectedRow: row,
-      selectedCol: col,
-      selectedCell: cell,
+      selectedRowId: rowId,
+      selectedColId: colId,
       activeDependency: null,
-      activeDependencies: deps,
-    });
-  },
+    }),
 
   deselectAll: () =>
     set({
-      selectedRow: undefined,
-      selectedCol: undefined,
-      selectedCell: undefined,
+      selectedRowId: null,
+      selectedColId: null,
       copiedCell: null,
       copiedCellKey: null,
       activeDependency: null,
-      activeDependencies: [],
     }),
 
   updateName: (name) =>
@@ -342,6 +242,9 @@ export const useMatrixEditorStore = create<MatrixEditorState>((set, get) => ({
           ...state.matrix,
           rows: state.matrix.rows.filter((r) => r.id !== rowId),
         },
+        ...(state.selectedRowId === rowId
+          ? { selectedRowId: null, selectedColId: null }
+          : {}),
       };
     }),
 
@@ -353,6 +256,9 @@ export const useMatrixEditorStore = create<MatrixEditorState>((set, get) => ({
           ...state.matrix,
           columns: state.matrix.columns.filter((c) => c.id !== colId),
         },
+        ...(state.selectedColId === colId
+          ? { selectedRowId: null, selectedColId: null }
+          : {}),
       };
     }),
 
@@ -430,36 +336,24 @@ export const useMatrixEditorStore = create<MatrixEditorState>((set, get) => ({
         cells[cellKey] = updatedCell;
       }
 
-      return {
-        matrix: { ...state.matrix, cells },
-        selectedCell: isEmpty ? undefined : updatedCell,
-      };
+      return { matrix: { ...state.matrix, cells } };
     }),
 
   selectSubWorkflow: (subWorkflowId, summaryVersion) =>
     set((state) => {
-      if (!state.matrix || !state.selectedRow) return {};
+      if (!state.matrix || !state.selectedRowId) return {};
       const updatedRows = state.matrix.rows.map((r) =>
-        r.id === state.selectedRow?.id
+        r.id === state.selectedRowId
           ? { ...r, subWorkflowId, subWorkflowVersion: summaryVersion }
           : r,
       );
-      return {
-        matrix: { ...state.matrix, rows: updatedRows },
-        selectedRow: state.selectedRow
-          ? {
-              ...state.selectedRow,
-              subWorkflowId,
-              subWorkflowVersion: summaryVersion,
-            }
-          : state.selectedRow,
-      };
+      return { matrix: { ...state.matrix, rows: updatedRows } };
     }),
 
   copyCell: () => {
-    const { selectedRow, selectedCol, matrix } = get();
-    if (!selectedRow || !selectedCol || !matrix) return;
-    const cellKey = `${selectedRow.id}:${selectedCol.id}`;
+    const { selectedRowId, selectedColId, matrix } = get();
+    if (!selectedRowId || !selectedColId || !matrix) return;
+    const cellKey = `${selectedRowId}:${selectedColId}`;
     const cell = matrix.cells[cellKey];
     if (!cell) return;
     set({ copiedCell: cell, copiedCellKey: cellKey });
@@ -469,16 +363,11 @@ export const useMatrixEditorStore = create<MatrixEditorState>((set, get) => ({
   },
 
   cutCell: () => {
-    const { selectedRow, selectedCol, matrix } = get();
-    if (!selectedRow || !selectedCol || !matrix) return;
-    const cellKey = `${selectedRow.id}:${selectedCol.id}`;
+    const { selectedRowId, selectedColId, matrix } = get();
+    if (!selectedRowId || !selectedColId || !matrix) return;
+    const cellKey = `${selectedRowId}:${selectedColId}`;
     const cell = matrix.cells[cellKey];
     if (!cell) return;
-
-    set({ copiedCell: cell, copiedCellKey: cellKey });
-    try {
-      navigator.clipboard.writeText(JSON.stringify(cell, null, 2));
-    } catch {}
 
     set((state) => {
       if (!state.matrix) return {};
@@ -486,15 +375,19 @@ export const useMatrixEditorStore = create<MatrixEditorState>((set, get) => ({
       delete nextCells[cellKey];
       return {
         matrix: { ...state.matrix, cells: nextCells },
-        selectedCell: undefined,
+        copiedCell: cell,
+        copiedCellKey: cellKey,
       };
     });
+    try {
+      navigator.clipboard.writeText(JSON.stringify(cell, null, 2));
+    } catch {}
   },
 
   pasteCell: async () => {
-    const { selectedRow, selectedCol, matrix, copiedCell } = get();
-    if (!selectedRow || !selectedCol || !matrix) return;
-    const targetCellKey = `${selectedRow.id}:${selectedCol.id}`;
+    const { selectedRowId, selectedColId, matrix, copiedCell } = get();
+    if (!selectedRowId || !selectedColId || !matrix) return;
+    const targetCellKey = `${selectedRowId}:${selectedColId}`;
     let sourceCellToPaste: CellSchema | null = copiedCell;
 
     try {
@@ -521,8 +414,8 @@ export const useMatrixEditorStore = create<MatrixEditorState>((set, get) => ({
     const pastedCell: CellSchema = {
       ...sourceCellToPaste,
       id: `cell_${Date.now()}`,
-      rowId: selectedRow.id,
-      colId: selectedCol.id,
+      rowId: selectedRowId,
+      colId: selectedColId,
       actions: newActions,
     };
 
@@ -536,19 +429,18 @@ export const useMatrixEditorStore = create<MatrixEditorState>((set, get) => ({
             [targetCellKey]: pastedCell,
           },
         },
-        selectedCell: pastedCell,
       };
     });
   },
 
   navigateCell: (dir) => {
-    const { matrix, selectedRow, selectedCol, selectCell } = get();
-    if (!matrix || !selectedRow || !selectedCol) return;
+    const { matrix, selectedRowId, selectedColId, selectCell } = get();
+    if (!matrix || !selectedRowId || !selectedColId) return;
     const sortedCols = [...matrix.columns].sort((a, b) => a.order - b.order);
     const sortedRows = [...matrix.rows].sort((a, b) => a.order - b.order);
 
-    const cIdx = sortedCols.findIndex((c) => c.id === selectedCol.id);
-    const rIdx = sortedRows.findIndex((r) => r.id === selectedRow.id);
+    const cIdx = sortedCols.findIndex((c) => c.id === selectedColId);
+    const rIdx = sortedRows.findIndex((r) => r.id === selectedRowId);
 
     if (cIdx === -1 || rIdx === -1) return;
 
@@ -564,77 +456,47 @@ export const useMatrixEditorStore = create<MatrixEditorState>((set, get) => ({
     const nextRow = sortedRows[newRIdx];
 
     if (!nextCol || !nextRow) return;
-
-    const nextCellKey = `${nextRow.id}:${nextCol.id}`;
-    const nextCell = matrix.cells[nextCellKey];
-    selectCell(nextRow, nextCol, nextCell);
+    selectCell(nextRow.id, nextCol.id);
   },
 
   hoverInputKey: (inputKey) => {
-    const { selectedRow, selectedCol, matrix } = get();
-    if (!inputKey || !selectedRow || !selectedCol || !matrix) {
+    const { selectedRowId, selectedColId, matrix } = get();
+    if (!inputKey || !selectedRowId || !selectedColId || !matrix) {
       set({ activeDependency: null });
       return;
     }
 
-    const targetCellKey = `${selectedRow.id}:${selectedCol.id}`;
+    const targetCellKey = `${selectedRowId}:${selectedColId}`;
     const clashSources = WorkflowValidationService.getAllOutputClashingSources(
       inputKey,
       matrix,
-      selectedRow.id,
-      selectedCol.id,
+      selectedRowId,
+      selectedColId,
     );
     if (clashSources.length > 0) {
-      const clashDeps: ActiveDependency[] = clashSources.map((src) => ({
-        sourceCellKey: src.cellKey,
-        isWorkflowInput: src.isWorkflowInput,
-        targetCellKey,
-        variableName: inputKey,
-        type: "clash",
-      }));
-      set((state) => {
-        const nonClashes = state.activeDependencies.filter(
-          (d) => d.type !== "clash",
-        );
-        return {
-          activeDependencies: [...nonClashes, ...clashDeps],
-          activeDependency: clashDeps[0] || null,
-        };
+      const src = clashSources[0];
+      set({
+        activeDependency: {
+          sourceCellKey: src.cellKey,
+          isWorkflowInput: src.isWorkflowInput,
+          targetCellKey,
+          variableName: inputKey,
+          type: "clash",
+        },
       });
       return;
     }
 
-    let foundProducerKey: string | undefined = undefined;
-    const colOrderMap = new Map(matrix.columns.map((c) => [c.id, c.order]));
-    const rowOrderMap = new Map(matrix.rows.map((r) => [r.id, r.order]));
-
-    const currColOrder = selectedCol.order;
-    const currRowOrder = selectedRow.order;
-
-    Object.values(matrix.cells || {}).forEach((c) => {
-      if (c.rowId === selectedRow.id && c.colId === selectedCol.id) return;
-      const cOrder = colOrderMap.get(c.colId);
-      const rOrder = rowOrderMap.get(c.rowId);
-
-      if (cOrder === undefined || rOrder === undefined) return;
-      const isPreceding =
-        cOrder < currColOrder ||
-        (cOrder === currColOrder && rOrder < currRowOrder);
-
-      if (!isPreceding) return;
-
-      const actions = getCellActions(c);
-      actions.forEach((act) => {
-        if ((act.outputs || []).includes(inputKey)) {
-          foundProducerKey = `${c.rowId}:${c.colId}`;
-        }
-      });
-    });
-
-    if (foundProducerKey) {
+    const producerKey = findProducerCellKey(
+      matrix,
+      selectedRowId,
+      selectedColId,
+      inputKey,
+    );
+    if (producerKey) {
       set({
         activeDependency: {
-          sourceCellKey: foundProducerKey,
+          sourceCellKey: producerKey,
           targetCellKey,
           variableName: inputKey,
           type: "incoming",
@@ -668,13 +530,13 @@ export const useMatrixEditorStore = create<MatrixEditorState>((set, get) => ({
       return { showFlows: next };
     }),
 
-  setIsDrawerOpen: (open) => set({ isDrawerOpen: open }),
-  setIsValidating: (open) => set({ isValidating: open }),
-  setIsInspectorModalOpen: (openOrUpdater) =>
+  openModal: (modal) => set({ activeModal: modal }),
+  closeModal: () => set({ activeModal: null }),
+  setIsInspectorOpen: (openOrUpdater) =>
     set((state) => ({
-      isInspectorModalOpen:
+      isInspectorOpen:
         typeof openOrUpdater === "function"
-          ? openOrUpdater(state.isInspectorModalOpen)
+          ? openOrUpdater(state.isInspectorOpen)
           : openOrUpdater,
     })),
 

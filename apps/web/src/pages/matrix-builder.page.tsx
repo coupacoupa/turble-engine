@@ -6,7 +6,6 @@ import { WorkflowApiService } from "@/services/workflow-api.service";
 import { SpreadsheetToolbar } from "@/components/workflow-editor/spreadsheet-toolbar.component";
 import { MatrixSheet } from "@/components/workflow-editor/matrix-sheet.component";
 import { CellEditorModal } from "@/components/workflow-editor/cell-editor-modal.component";
-import { ValidationModal } from "@/components/workflow-editor/validation-modal.component";
 import { ExecutionInspectorBottomPanel } from "@/components/workflow-editor/execution-inspector-bottom-panel.component";
 import { useMatrixEditorStore } from "@/stores/matrix-editor.store";
 import { useMatrixKeyboardShortcuts } from "@/hooks/use-matrix-keyboard-shortcuts.hook";
@@ -25,12 +24,8 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
   const setMatrix = useMatrixEditorStore((s) => s.setMatrix);
   const setSaveState = useMatrixEditorStore((s) => s.setSaveState);
   const setLatestVersion = useMatrixEditorStore((s) => s.setLatestVersion);
-  const isInspectorModalOpen = useMatrixEditorStore(
-    (s) => s.isInspectorModalOpen,
-  );
-  const setIsInspectorModalOpen = useMatrixEditorStore(
-    (s) => s.setIsInspectorModalOpen,
-  );
+  const isInspectorOpen = useMatrixEditorStore((s) => s.isInspectorOpen);
+  const setIsInspectorOpen = useMatrixEditorStore((s) => s.setIsInspectorOpen);
   const testInputPayload = useMatrixEditorStore((s) => s.testInputPayload);
   const setHoveredStepRecord = useMatrixEditorStore(
     (s) => s.setHoveredStepRecord,
@@ -38,9 +33,17 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
   const setHoveredVariableKey = useMatrixEditorStore(
     (s) => s.setHoveredVariableKey,
   );
+  const resetEditor = useMatrixEditorStore((s) => s.resetEditor);
 
   // Attach global keyboard shortcuts (0 props required!)
   useMatrixKeyboardShortcuts();
+
+  // The store is a global singleton: clear the previous workflow's matrix,
+  // selection, and panels when this page unmounts or switches workflows,
+  // otherwise the next workflow briefly renders (and autosaves!) stale data.
+  useEffect(() => {
+    return () => resetEditor();
+  }, [workflowId, resetEditor]);
 
   // Load Workflow Query
   const workflowQuery = useQuery({
@@ -164,7 +167,7 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
       matrix,
       inputPayload,
     });
-    setIsInspectorModalOpen(true);
+    setIsInspectorOpen(true);
     return res;
   };
 
@@ -204,10 +207,10 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
       </div>
 
       {/* 3. Docked Bottom Inspector */}
-      {isInspectorModalOpen ? (
+      {isInspectorOpen ? (
         <ExecutionInspectorBottomPanel
-          isOpen={isInspectorModalOpen}
-          onClose={() => setIsInspectorModalOpen(false)}
+          isOpen={isInspectorOpen}
+          onClose={() => setIsInspectorOpen(false)}
           matrix={matrix}
           initialInputPayload={testInputPayload}
           onRunExecution={handleStartExecution}
@@ -217,9 +220,8 @@ export const MatrixBuilderPage: React.FC<MatrixBuilderPageProps> = ({
         />
       ) : null}
 
-      {/* 4. Cell Editor & Validation Modals */}
+      {/* 4. Cell Editor Modal */}
       <CellEditorModal availableSubWorkflows={availableSubWorkflows} />
-      <ValidationModal />
     </div>
   );
 };

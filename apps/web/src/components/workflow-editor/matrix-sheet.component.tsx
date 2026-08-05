@@ -12,6 +12,7 @@ import {
 } from "@/components/workflow-editor/dependency-connector-overlay.component";
 import { WorkflowValidationService } from "@/services/workflow-validation.service";
 import { getCellActions } from "@/utils/cell-actions.util";
+import { computeCellDependencies } from "@/utils/dependency-tracing.util";
 import { useMatrixEditorStore } from "@/stores/matrix-editor.store";
 
 export interface CellExecutionState {
@@ -22,7 +23,6 @@ export interface CellExecutionState {
 
 interface MatrixSheetProps {
   activeStepIndex?: number;
-  dependencies?: ActiveDependency[];
   cellExecutionResults?: Record<string, CellExecutionState>;
 }
 
@@ -75,13 +75,12 @@ const ResizeHandle: React.FC<{
 
 export const MatrixSheet: React.FC<MatrixSheetProps> = ({
   activeStepIndex,
-  dependencies = [],
   cellExecutionResults,
 }) => {
   // Direct Store Subscriptions & Action Dispatchers
   const matrix = useMatrixEditorStore((s) => s.matrix);
-  const selectedRowId = useMatrixEditorStore((s) => s.selectedRow?.id);
-  const selectedColId = useMatrixEditorStore((s) => s.selectedCol?.id);
+  const selectedRowId = useMatrixEditorStore((s) => s.selectedRowId);
+  const selectedColId = useMatrixEditorStore((s) => s.selectedColId);
   const copiedCellKey = useMatrixEditorStore((s) => s.copiedCellKey);
   const activeDependency = useMatrixEditorStore((s) => s.activeDependency);
   const showFlows = useMatrixEditorStore((s) => s.showFlows);
@@ -95,17 +94,15 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
   const renameRow = useMatrixEditorStore((s) => s.renameRow);
   const reorderColumns = useMatrixEditorStore((s) => s.reorderColumns);
   const reorderRows = useMatrixEditorStore((s) => s.reorderRows);
-  const setIsDrawerOpen = useMatrixEditorStore((s) => s.setIsDrawerOpen);
-
-  if (!matrix) return null;
+  const openModal = useMatrixEditorStore((s) => s.openModal);
 
   const sortedCols = useMemo(
-    () => [...matrix.columns].sort((a, b) => a.order - b.order),
-    [matrix.columns],
+    () => (matrix ? [...matrix.columns].sort((a, b) => a.order - b.order) : []),
+    [matrix?.columns],
   );
   const sortedRows = useMemo(
-    () => [...matrix.rows].sort((a, b) => a.order - b.order),
-    [matrix.rows],
+    () => (matrix ? [...matrix.rows].sort((a, b) => a.order - b.order) : []),
+    [matrix?.rows],
   );
 
   const cellIssues = useMemo(() => {
@@ -113,6 +110,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
       string,
       { unresolvedInputs: string[]; clashingOutputs: string[] }
     > = {};
+    if (!matrix) return map;
     Object.entries(matrix.cells).forEach(([cellKey, cell]) => {
       map[cellKey] = {
         unresolvedInputs: WorkflowValidationService.getUnresolvedCellInputs(
@@ -128,7 +126,16 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
       };
     });
     return map;
-  }, [matrix]);
+    // Validation only reads structure — metadata edits (name/description)
+    // must not trigger an O(cells²) revalidation.
+  }, [matrix?.cells, matrix?.columns, matrix?.rows, matrix?.inputs]);
+
+  // Dependency edges for the selected cell, derived on demand instead of
+  // persisted in the store so they can never go stale.
+  const dependencies = useMemo<ActiveDependency[]>(() => {
+    if (!matrix || !showFlows || !selectedRowId || !selectedColId) return [];
+    return computeCellDependencies(matrix, selectedRowId, selectedColId);
+  }, [matrix, showFlows, selectedRowId, selectedColId]);
 
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
@@ -299,10 +306,11 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
     null,
   );
 
-  const prevColCountRef = useRef(matrix.columns.length);
-  const prevRowCountRef = useRef(matrix.rows.length);
+  const prevColCountRef = useRef(matrix?.columns.length ?? 0);
+  const prevRowCountRef = useRef(matrix?.rows.length ?? 0);
 
   useEffect(() => {
+    if (!matrix) return;
     if (matrix.columns.length > prevColCountRef.current) {
       const lastCol = [...matrix.columns]
         .sort((a, b) => a.order - b.order)
@@ -310,15 +318,16 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
       if (lastCol) setPendingScrollColId(lastCol.id);
     }
     prevColCountRef.current = matrix.columns.length;
-  }, [matrix.columns]);
+  }, [matrix?.columns]);
 
   useEffect(() => {
+    if (!matrix) return;
     if (matrix.rows.length > prevRowCountRef.current) {
       const lastRow = [...matrix.rows].sort((a, b) => a.order - b.order).at(-1);
       if (lastRow) setPendingScrollRowId(lastRow.id);
     }
     prevRowCountRef.current = matrix.rows.length;
-  }, [matrix.rows]);
+  }, [matrix?.rows]);
 
   useEffect(() => {
     if (!pendingScrollColId) return;
@@ -457,6 +466,10 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
       return next;
     });
   }, []);
+
+  // After every hook — an undefined matrix mid-session (e.g. workflow switch)
+  // must not change the hook call order.
+  if (!matrix) return null;
 
   return (
     <div className="flex-1 w-full h-full relative font-sans text-xs select-none overflow-hidden">
@@ -748,10 +761,10 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                         data-cell-key={cellKey}
                         role="gridcell"
                         aria-selected={isSelectedCell}
-                        onClick={() => selectCell(row, col, cell)}
+                        onClick={() => selectCell(row.id, col.id)}
                         onDoubleClick={() => {
-                          selectCell(row, col, cell);
-                          setIsDrawerOpen(true);
+                          selectCell(row.id, col.id);
+                          openModal("cellEditor");
                         }}
                         style={{ width: w, minWidth: MIN_COL_WIDTH, height: h }}
                         className={`relative border-r border-b border-slate-200 p-2 align-top transition-all cursor-pointer group ${
@@ -772,11 +785,8 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                           <div className="absolute inset-0 pointer-events-none z-10 border-2 border-dashed border-amber-500 animate-pulse" />
                         ) : null}
 
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] text-slate-400 font-bold">
-                            {cellKey}
-                          </span>
-                          <div className="flex items-center space-x-1">
+                        {hasUnresolved || hasClash ? (
+                          <div className="flex items-center justify-end space-x-1 mb-1">
                             {hasUnresolved ? (
                               <span
                                 className="flex items-center space-x-1 bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[9px] font-bold"
@@ -796,7 +806,7 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                               </span>
                             ) : null}
                           </div>
-                        </div>
+                        ) : null}
 
                         {hasContent ? (
                           <div className="space-y-1">
@@ -854,12 +864,15 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
               );
             })}
 
+            {/* Add-controls row: sticky to the viewport bottom (and the
+                column-add button sticky-left past the row header) so the
+                controls stay reachable however far the grid scrolls. */}
             <tr role="row" className="bg-slate-50">
               <td
                 role="rowheader"
                 aria-label="Add row controls"
                 style={{ width: rowHeaderWidth }}
-                className="sticky left-0 z-sticky p-2 border-r border-b border-slate-200 bg-slate-100"
+                className="sticky left-0 bottom-0 z-sticky-corner p-2 border-r border-t border-b border-slate-200 bg-slate-100"
               >
                 <div className="flex items-center space-x-1">
                   <button
@@ -877,12 +890,13 @@ export const MatrixSheet: React.FC<MatrixSheetProps> = ({
                 </div>
               </td>
               <td
-                colSpan={sortedCols.length}
-                className="p-2 border-b border-slate-200"
+                colSpan={Math.max(sortedCols.length, 1)}
+                className="sticky bottom-0 z-sticky p-2 border-t border-b border-slate-200 bg-slate-50"
               >
                 <button
                   onClick={addColumn}
-                  className="py-1 px-3 rounded bg-white hover:bg-slate-200 text-slate-700 font-mono text-[10px] font-bold border border-slate-200 shadow-2xs transition-colors cursor-pointer"
+                  className="sticky py-1 px-3 rounded bg-white hover:bg-slate-200 text-slate-700 font-mono text-[10px] font-bold border border-slate-200 shadow-2xs transition-colors cursor-pointer"
+                  style={{ left: rowHeaderWidth + 8 }}
                 >
                   + Add Step Column
                 </button>

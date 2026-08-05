@@ -4,9 +4,7 @@ import {
   CellActionItem,
   CellActionType,
   CellSchema,
-  DomainRowSchema,
   MatrixSchema,
-  StepColumnSchema,
   TableRuleMatch,
 } from "@/types/matrix.types";
 import { getCellActions } from "@/utils/cell-actions.util";
@@ -24,20 +22,15 @@ import {
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 
-import { useMatrixEditorStore } from "@/stores/matrix-editor.store";
+import {
+  selectSelectedCell,
+  selectSelectedCol,
+  selectSelectedRow,
+  useMatrixEditorStore,
+} from "@/stores/matrix-editor.store";
 
 interface CellEditorModalProps {
-  isOpen?: boolean;
-  onClose?: () => void;
-  matrix?: MatrixSchema;
-  row?: DomainRowSchema;
-  column?: StepColumnSchema;
-  cell?: CellSchema;
   availableSubWorkflows?: MatrixSchema[];
-  onSaveCell?: (updatedCell: CellSchema) => void;
-  onCreateMatrix?: () => void;
-  onSelectSubWorkflow?: (subWorkflowId: string) => void;
-  onHoverInput?: (inputKey: string | null) => void;
 }
 
 export interface InputSourceOption {
@@ -52,39 +45,17 @@ const MIN_WIDTH = 500;
 const MIN_HEIGHT = 480;
 
 export const CellEditorModal: React.FC<CellEditorModalProps> = ({
-  isOpen: propsIsOpen,
-  onClose: propsOnClose,
-  matrix: propsMatrix,
-  row: propsRow,
-  column: propsColumn,
-  cell: propsCell,
   availableSubWorkflows = [],
-  onSaveCell: propsOnSaveCell,
-  onCreateMatrix,
-  onSelectSubWorkflow: propsOnSelectSubWorkflow,
-  onHoverInput: propsOnHoverInput,
 }) => {
-  const storeIsOpen = useMatrixEditorStore((s) => s.isDrawerOpen);
-  const storeSetIsOpen = useMatrixEditorStore((s) => s.setIsDrawerOpen);
-  const storeMatrix = useMatrixEditorStore((s) => s.matrix);
-  const storeRow = useMatrixEditorStore((s) => s.selectedRow);
-  const storeColumn = useMatrixEditorStore((s) => s.selectedCol);
-  const storeCell = useMatrixEditorStore((s) => s.selectedCell);
-
-  const isOpen = propsIsOpen ?? storeIsOpen;
-  const onClose = propsOnClose ?? (() => storeSetIsOpen(false));
-  const matrix = propsMatrix ?? storeMatrix;
-  const row = propsRow ?? storeRow;
-  const column = propsColumn ?? storeColumn;
-  const cell = propsCell ?? storeCell;
-  const onSaveCell =
-    propsOnSaveCell ?? ((c) => useMatrixEditorStore.getState().saveCell(c));
-  const onSelectSubWorkflow =
-    propsOnSelectSubWorkflow ??
-    ((id) => useMatrixEditorStore.getState().selectSubWorkflow(id));
-  const onHoverInput =
-    propsOnHoverInput ??
-    ((key) => useMatrixEditorStore.getState().hoverInputKey(key));
+  const isOpen = useMatrixEditorStore((s) => s.activeModal === "cellEditor");
+  const onClose = useMatrixEditorStore((s) => s.closeModal);
+  const matrix = useMatrixEditorStore((s) => s.matrix);
+  const row = useMatrixEditorStore(selectSelectedRow);
+  const column = useMatrixEditorStore(selectSelectedCol);
+  const cell = useMatrixEditorStore(selectSelectedCell);
+  const onSaveCell = useMatrixEditorStore((s) => s.saveCell);
+  const onSelectSubWorkflow = useMatrixEditorStore((s) => s.selectSubWorkflow);
+  const onHoverInput = useMatrixEditorStore((s) => s.hoverInputKey);
 
   // Multi-action list state
   const [actions, setActions] = useState<CellActionItem[]>([]);
@@ -1249,21 +1220,9 @@ export const CellEditorModal: React.FC<CellEditorModalProps> = ({
         {!isStandardRow && (
           <div className="space-y-4 font-mono text-xs bg-white p-4 border border-slate-200 rounded-xl shadow-2xs">
             <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-purple-900 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-xs">
-                  Target Sub-Workflow Matrix:
-                </span>
-                {onCreateMatrix && (
-                  <button
-                    type="button"
-                    onClick={onCreateMatrix}
-                    className="px-2 py-1 rounded bg-purple-600 hover:bg-purple-700 text-white font-sans text-[11px] font-bold flex items-center space-x-1 cursor-pointer transition-colors shadow-2xs"
-                  >
-                    <Plus className="h-3 w-3" />
-                    <span>Create New Matrix</span>
-                  </button>
-                )}
-              </div>
+              <span className="font-semibold text-xs">
+                Target Sub-Workflow Matrix:
+              </span>
 
               <select
                 value={row.subWorkflowId || availableSubWorkflows[0]?.id || ""}

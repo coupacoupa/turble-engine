@@ -18,28 +18,19 @@ export const useMatrixKeyboardShortcuts = () => {
       const store = useMatrixEditorStore.getState();
 
       if (e.key === "Escape") {
-        if (store.isDrawerOpen) {
-          store.setIsDrawerOpen(false);
-          return;
-        }
-        if (store.isValidating) {
-          store.setIsValidating(false);
+        if (store.activeModal) {
+          store.closeModal();
           return;
         }
 
-        if (
-          store.selectedRow ||
-          store.selectedCol ||
-          store.selectedCell ||
-          store.copiedCellKey
-        ) {
+        if (store.selectedRowId || store.selectedColId || store.copiedCellKey) {
           e.preventDefault();
           store.deselectAll();
           return;
         }
       }
 
-      if (isInput || store.isDrawerOpen || store.isValidating) {
+      if (isInput || store.activeModal) {
         return;
       }
 
@@ -65,9 +56,9 @@ export const useMatrixKeyboardShortcuts = () => {
         e.preventDefault();
         store.navigateCell("right");
       } else if (e.key === "Enter") {
-        if (store.selectedRow && store.selectedCol) {
+        if (store.selectedRowId && store.selectedColId) {
           e.preventDefault();
-          store.setIsDrawerOpen(true);
+          store.openModal("cellEditor");
         }
       }
     };

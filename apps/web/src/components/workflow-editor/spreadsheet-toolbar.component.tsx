@@ -37,13 +37,8 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
   const latestVersion = useMatrixEditorStore((s) => s.latestVersion);
   const showFlows = useMatrixEditorStore((s) => s.showFlows);
   const toggleFlows = useMatrixEditorStore((s) => s.toggleFlows);
-  const isInspectorModalOpen = useMatrixEditorStore(
-    (s) => s.isInspectorModalOpen,
-  );
-  const setIsInspectorModalOpen = useMatrixEditorStore(
-    (s) => s.setIsInspectorModalOpen,
-  );
-  const setIsValidating = useMatrixEditorStore((s) => s.setIsValidating);
+  const isInspectorOpen = useMatrixEditorStore((s) => s.isInspectorOpen);
+  const setIsInspectorOpen = useMatrixEditorStore((s) => s.setIsInspectorOpen);
 
   const updateName = useMatrixEditorStore((s) => s.updateName);
   const updateDescription = useMatrixEditorStore((s) => s.updateDescription);
@@ -65,9 +60,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
   const [newType, setNewType] = useState<InputValueType>("string");
   const [newDefaultVal, setNewDefaultVal] = useState("");
 
-  if (!matrix) return null;
-
-  const inputs = matrix.inputs || [];
+  const inputs = matrix?.inputs || [];
 
   // Filtered inputs for search inside modal
   const filteredInputs = useMemo(() => {
@@ -83,6 +76,7 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
   // Extract read-only decision outputs derived from grid cells
   const derivedOutputs = useMemo(() => {
     const outputsSet = new Map<string, { type: string; source: string }>();
+    if (!matrix) return [];
 
     Object.values(matrix.cells).forEach((cell) => {
       if (!cell || !cell.enabled) return;
@@ -150,7 +144,10 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
       key,
       ...info,
     }));
-  }, [matrix.cells, matrix.rows, matrix.columns, matrix.outputSchema]);
+  }, [matrix?.cells, matrix?.rows, matrix?.columns, matrix?.outputSchema]);
+
+  // After every hook, so a missing matrix cannot change the hook call order.
+  if (!matrix) return null;
 
   // Add Single Parameter
   const handleAddInput = (e: React.FormEvent) => {
@@ -427,14 +424,14 @@ export const SpreadsheetToolbar: React.FC<SpreadsheetToolbarProps> = ({
           <div className="h-4 w-px bg-slate-300 shrink-0" />
 
           <button
-            onClick={() => setIsInspectorModalOpen((prev) => !prev)}
+            onClick={() => setIsInspectorOpen((prev) => !prev)}
             className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-semibold border transition-all cursor-pointer shadow-2xs shrink-0 ${
-              isInspectorModalOpen
+              isInspectorOpen
                 ? "bg-slate-800 hover:bg-slate-700 text-white border-slate-700"
                 : "bg-white hover:bg-slate-100 text-slate-600 border-slate-200"
             }`}
             title={
-              isInspectorModalOpen
+              isInspectorOpen
                 ? "Close Execution Inspector"
                 : "Open Execution Inspector"
             }
